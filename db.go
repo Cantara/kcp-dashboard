@@ -8,15 +8,16 @@ import (
 )
 
 type Stats struct {
-	TotalSearches int64
-	TotalGets     int64
-	TotalInjects  int64
-	TokensSaved   int64
-	Projects      []string
-	TopUnits      []UnitRow
-	TopCommands   []UnitRow
-	TopQueries    []QueryRow
-	Err           error
+	TotalSearches    int64
+	TotalGets        int64
+	TotalInjects     int64
+	TokensSaved      int64 // kcp-mcp: manifest_token_total - token_estimate
+	InjectTokens     int64 // kcp-commands: SUM(token_estimate) for inject events
+	Projects         []string
+	TopUnits         []UnitRow
+	TopCommands      []UnitRow
+	TopQueries       []QueryRow
+	Err              error
 }
 
 type UnitRow struct {
@@ -56,7 +57,16 @@ func loadStats(dbPath string, days int, project string) Stats {
 		   FROM usage_events WHERE timestamp >= ?`+projectClause, base...)
 	row.Scan(&s.TotalSearches, &s.TotalGets, &s.TotalInjects)
 
-	// Tokens saved
+	// Tokens injected by kcp-commands (compact manifests)
+	row = db.QueryRow(
+		`SELECT COALESCE(SUM(token_estimate), 0)
+		   FROM usage_events
+		  WHERE event_type='inject'
+		    AND token_estimate IS NOT NULL
+		    AND timestamp >= ?`+projectClause, base...)
+	row.Scan(&s.InjectTokens)
+
+	// Tokens saved by kcp-mcp (smart routing)
 	row = db.QueryRow(
 		`SELECT COALESCE(SUM(manifest_token_total - token_estimate), 0)
 		   FROM usage_events

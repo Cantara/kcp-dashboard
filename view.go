@@ -140,31 +140,47 @@ func (m model) View() string {
 	// ── Overview (pinned) ─────────────────────────────────────────────────────
 
 	s := m.stats
-	ov := []string{
-		fmt.Sprintf("  %s   %s     %s   %s     %s   %s",
-			styleLabel.Render("Queries served"),
-			styleValue.Render(fmtNum(s.TotalSearches)),
-			styleLabel.Render("Units fetched"),
-			styleValue.Render(fmtNum(s.TotalGets)),
-			styleLabel.Render("Commands assisted"),
-			styleValue.Render(fmtNum(s.TotalInjects)),
-		),
+
+	// kcp-commands row
+	cmdTokens := styleDim.Render("no data yet")
+	if s.InjectTokens > 0 {
+		cmdTokens = styleValue.Render(fmtNum(s.InjectTokens)+" tokens") +
+			styleDim.Render(" compact syntax injected")
 	}
+	cmdRow := fmt.Sprintf("  %s   %s %s  →  %s",
+		styleLabel.Render("kcp-commands"),
+		styleValue.Render(fmtNum(s.TotalInjects)),
+		styleDim.Render("Bash calls intercepted"),
+		cmdTokens,
+	)
+
+	// kcp-mcp row
+	var mcpRow string
 	if s.TokensSaved > 0 {
-		ov = append(ov, fmt.Sprintf("  %s   %s",
-			styleLabel.Render("Tokens saved  "),
-			styleSaved.Render("▲ "+fmtNum(s.TokensSaved)),
-		))
+		mcpRow = fmt.Sprintf("  %s   %s %s  →  %s",
+			styleLabel.Render("kcp-mcp      "),
+			styleValue.Render(fmtNum(s.TotalSearches)),
+			styleDim.Render("queries routed   "),
+			styleSaved.Render("▲ "+fmtNum(s.TokensSaved)+" tokens saved"),
+		)
 	} else {
-		ov = append(ov, fmt.Sprintf("  %s   %s",
-			styleLabel.Render("Tokens saved  "),
-			styleDim.Render("n/a — add hints.token_estimate to knowledge.yaml"),
-		))
+		mcpRow = fmt.Sprintf("  %s   %s %s  →  %s",
+			styleLabel.Render("kcp-mcp      "),
+			styleValue.Render(fmtNum(s.TotalSearches)),
+			styleDim.Render("queries routed   "),
+			styleDim.Render("▲ 0  (no token_estimate in knowledge.yaml)"),
+		)
 	}
+
+	ov := []string{cmdRow, mcpRow}
 	if len(s.Projects) > 0 {
+		proj := strings.Join(s.Projects, ", ")
+		if len(proj) > 60 {
+			proj = proj[:57] + "…"
+		}
 		ov = append(ov, fmt.Sprintf("  %s   %s",
-			styleLabel.Render("Projects      "),
-			styleDim.Render(strings.Join(s.Projects, ", ")),
+			styleLabel.Render("Projects     "),
+			styleDim.Render(proj),
 		))
 	}
 	overview := stylePanel.Width(innerW).Render(" Overview\n\n" + strings.Join(ov, "\n"))
