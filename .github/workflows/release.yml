@@ -1,0 +1,56 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Build binaries
+        run: |
+          GOOS=linux  GOARCH=amd64 go build -ldflags="-s -w" -o dist/kcp-dashboard-linux-amd64   .
+          GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o dist/kcp-dashboard-darwin-amd64  .
+          GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o dist/kcp-dashboard-darwin-arm64  .
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "kcp-dashboard ${{ github.ref_name }}"
+          body: |
+            ## Installation
+
+            **macOS (Apple Silicon)**
+            ```bash
+            curl -fsSL https://github.com/Cantara/kcp-dashboard/releases/latest/download/kcp-dashboard-darwin-arm64 -o ~/.local/bin/kcp-dashboard
+            chmod +x ~/.local/bin/kcp-dashboard
+            ```
+
+            **macOS (Intel)**
+            ```bash
+            curl -fsSL https://github.com/Cantara/kcp-dashboard/releases/latest/download/kcp-dashboard-darwin-amd64 -o ~/.local/bin/kcp-dashboard
+            chmod +x ~/.local/bin/kcp-dashboard
+            ```
+
+            **Linux**
+            ```bash
+            curl -fsSL https://github.com/Cantara/kcp-dashboard/releases/latest/download/kcp-dashboard-linux-amd64 -o ~/.local/bin/kcp-dashboard
+            chmod +x ~/.local/bin/kcp-dashboard
+            ```
+
+            Requires `~/.kcp/usage.db` — populated by [kcp-mcp bridge](https://github.com/Cantara/knowledge-context-protocol) v0.14.3+.
+          files: |
+            dist/kcp-dashboard-linux-amd64
+            dist/kcp-dashboard-darwin-amd64
+            dist/kcp-dashboard-darwin-arm64
