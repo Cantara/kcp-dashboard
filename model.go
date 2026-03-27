@@ -3,10 +3,21 @@ package main
 import (
 	"time"
 
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
 const refreshInterval = 2 * time.Second
+
+// Fixed UI chrome heights (lines):
+//
+//	header line: 1
+//	blank:        1
+//	overview panel border+padding+content: ~7
+//	blank:        1
+//	status bar:   1
+//	outer border: 2
+const fixedHeight = 14
 
 var dayOptions = []int{1, 7, 30, 90, 365}
 
@@ -22,6 +33,8 @@ type model struct {
 	width      int
 	height     int
 	loading    bool
+	vp         viewport.Model
+	vpReady    bool
 }
 
 func newModel(dbPath string, days int, project string) model {
@@ -61,11 +74,28 @@ func tickCmd() tea.Cmd {
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var (
+		cmd  tea.Cmd
+		cmds []tea.Cmd
+	)
+
 	switch msg := msg.(type) {
 
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		vpHeight := msg.Height - fixedHeight
+		if vpHeight < 3 {
+			vpHeight = 3
+		}
+		if !m.vpReady {
+			m.vp = viewport.New(msg.Width-6, vpHeight)
+			m.vpReady = true
+		} else {
+			m.vp.Width = msg.Width - 6
+			m.vp.Height = vpHeight
+		}
+		m.vp.SetContent(renderPanels(m))
 
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -85,13 +115,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.stats = msg
 		m.lastUpdate = time.Now()
 		m.loading = false
+		if m.vpReady {
+			m.vp.SetContent(renderPanels(m))
+		}
 
 	case tickMsg:
-		return m, tea.Batch(
+		cmds = append(cmds, tea.Batch(
 			fetchCmd(m.dbPath, m.days, m.project),
 			tickCmd(),
-		)
+		))
 	}
 
-	return m, nil
+	// Forward keypresses to viewport (↑↓ PgUp PgDn scroll)
+	m.vp, cmd = m.vp.Update(msg)
+	cmds = append(cmds, cmd)
+
+	return m, tea.Batch(cmds...)
 }
