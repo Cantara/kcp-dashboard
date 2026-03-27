@@ -58,11 +58,13 @@ func (m model) View() string {
 
 	s := m.stats
 	ov := []string{
-		fmt.Sprintf("  %s   %s     %s   %s",
+		fmt.Sprintf("  %s   %s     %s   %s     %s   %s",
 			styleLabel.Render("Queries served"),
 			styleValue.Render(fmtNum(s.TotalSearches)),
 			styleLabel.Render("Units fetched"),
 			styleValue.Render(fmtNum(s.TotalGets)),
+			styleLabel.Render("Commands assisted"),
+			styleValue.Render(fmtNum(s.TotalInjects)),
 		),
 	}
 	if s.TokensSaved > 0 {
@@ -115,6 +117,33 @@ func (m model) View() string {
 		}
 		sections = append(sections,
 			stylePanel.Width(innerW).Render(" Top Units\n\n"+strings.Join(lines, "\n")),
+			"",
+		)
+	}
+
+	// ── Top Commands ──────────────────────────────────────────────────────────
+
+	if len(s.TopCommands) > 0 {
+		var maxCount int64
+		for _, u := range s.TopCommands {
+			if u.Count > maxCount {
+				maxCount = u.Count
+			}
+		}
+		const barCols = 22
+		lines := make([]string, 0, len(s.TopCommands))
+		for _, u := range s.TopCommands {
+			filled := int(float64(barCols) * float64(u.Count) / float64(maxCount))
+			bar := styleBar.Render(strings.Repeat("█", filled)) +
+				styleDim.Render(strings.Repeat("░", barCols-filled))
+			name := truncate(u.UnitID, 26)
+			lines = append(lines, fmt.Sprintf("  %-26s  %s  %s",
+				name, bar,
+				styleValue.Render(fmt.Sprintf("%d", u.Count)),
+			))
+		}
+		sections = append(sections,
+			stylePanel.Width(innerW).Render(" Top Commands (injected)\n\n"+strings.Join(lines, "\n")),
 			"",
 		)
 	}

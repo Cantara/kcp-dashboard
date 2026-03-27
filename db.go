@@ -10,9 +10,11 @@ import (
 type Stats struct {
 	TotalSearches int64
 	TotalGets     int64
+	TotalInjects  int64
 	TokensSaved   int64
 	Projects      []string
 	TopUnits      []UnitRow
+	TopCommands   []UnitRow
 	TopQueries    []QueryRow
 	Err           error
 }
@@ -49,9 +51,10 @@ func loadStats(dbPath string, days int, project string) Stats {
 	// Counts
 	row := db.QueryRow(
 		`SELECT COUNT(CASE WHEN event_type='search' THEN 1 END),
-		        COUNT(CASE WHEN event_type='get_unit' THEN 1 END)
+		        COUNT(CASE WHEN event_type='get_unit' THEN 1 END),
+		        COUNT(CASE WHEN event_type='inject' THEN 1 END)
 		   FROM usage_events WHERE timestamp >= ?`+projectClause, base...)
-	row.Scan(&s.TotalSearches, &s.TotalGets)
+	row.Scan(&s.TotalSearches, &s.TotalGets, &s.TotalInjects)
 
 	// Tokens saved
 	row = db.QueryRow(
@@ -77,6 +80,22 @@ func loadStats(dbPath string, days int, project string) Stats {
 			var u UnitRow
 			rows.Scan(&u.UnitID, &u.Count, &u.TokensSaved)
 			s.TopUnits = append(s.TopUnits, u)
+		}
+	}
+
+	// Top commands (inject events)
+	rows1b, err := db.Query(
+		`SELECT unit_id, COUNT(*) cnt, 0
+		   FROM usage_events
+		  WHERE event_type='inject' AND unit_id IS NOT NULL
+		    AND timestamp >= ?`+projectClause+`
+		  GROUP BY unit_id ORDER BY cnt DESC LIMIT 10`, base...)
+	if err == nil {
+		defer rows1b.Close()
+		for rows1b.Next() {
+			var u UnitRow
+			rows1b.Scan(&u.UnitID, &u.Count, &u.TokensSaved)
+			s.TopCommands = append(s.TopCommands, u)
 		}
 	}
 
