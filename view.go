@@ -15,13 +15,15 @@ var (
 	colDim    = lipgloss.Color("#6B7280")
 	colWhite  = lipgloss.Color("#F9FAFB")
 	colBar    = lipgloss.Color("#8B5CF6")
+	colAmber  = lipgloss.Color("#F59E0B")
 
-	styleTitle = lipgloss.NewStyle().Bold(true).Foreground(colWhite)
-	styleValue = lipgloss.NewStyle().Bold(true).Foreground(colTeal)
-	styleSaved = lipgloss.NewStyle().Bold(true).Foreground(colGreen)
-	styleLabel = lipgloss.NewStyle().Foreground(colDim)
-	styleDim   = lipgloss.NewStyle().Foreground(colDim)
-	styleBar   = lipgloss.NewStyle().Foreground(colBar)
+	styleTitle  = lipgloss.NewStyle().Bold(true).Foreground(colWhite)
+	styleValue  = lipgloss.NewStyle().Bold(true).Foreground(colTeal)
+	styleSaved  = lipgloss.NewStyle().Bold(true).Foreground(colGreen)
+	styleLabel  = lipgloss.NewStyle().Foreground(colDim)
+	styleDim    = lipgloss.NewStyle().Foreground(colDim)
+	styleBar    = lipgloss.NewStyle().Foreground(colBar)
+	styleWarn   = lipgloss.NewStyle().Foreground(colAmber)
 
 	stylePanel = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
@@ -34,14 +36,13 @@ var (
 			Padding(0, 1)
 )
 
-// renderPanels builds the scrollable section (everything below overview).
-// Called both from View() and whenever stats update.
+// renderPanels builds the scrollable section below the overview.
 func renderPanels(m model) string {
 	innerW := m.width - 6
 	s := m.stats
 	var sections []string
 
-	// ── Top Commands ──────────────────────────────────────────────────────────
+	// ── Commands Guided ────────────────────────────────────────────────────
 
 	if len(s.TopCommands) > 0 {
 		var maxCount int64
@@ -50,25 +51,25 @@ func renderPanels(m model) string {
 				maxCount = u.Count
 			}
 		}
-		const barCols = 22
+		const barCols = 20
 		lines := make([]string, 0, len(s.TopCommands))
 		for _, u := range s.TopCommands {
 			filled := int(float64(barCols) * float64(u.Count) / float64(maxCount))
 			bar := styleBar.Render(strings.Repeat("█", filled)) +
 				styleDim.Render(strings.Repeat("░", barCols-filled))
-			name := truncate(u.UnitID, 26)
-			lines = append(lines, fmt.Sprintf("  %-26s  %s  %s",
+			name := truncate(u.UnitID, 22)
+			lines = append(lines, fmt.Sprintf("  %-22s  %s  %s",
 				name, bar,
 				styleValue.Render(fmt.Sprintf("%d", u.Count)),
 			))
 		}
 		sections = append(sections,
-			stylePanel.Width(innerW).Render(" Top Commands (injected)\n\n"+strings.Join(lines, "\n")),
+			stylePanel.Width(innerW).Render(" Commands Guided\n\n"+strings.Join(lines, "\n")),
 			"",
 		)
 	}
 
-	// ── Top Units ─────────────────────────────────────────────────────────────
+	// ── Top Units (kcp-mcp smart routing) ─────────────────────────────────
 
 	if len(s.TopUnits) > 0 {
 		var maxCount int64
@@ -77,18 +78,18 @@ func renderPanels(m model) string {
 				maxCount = u.Count
 			}
 		}
-		const barCols = 22
+		const barCols = 20
 		lines := make([]string, 0, len(s.TopUnits))
 		for _, u := range s.TopUnits {
 			filled := int(float64(barCols) * float64(u.Count) / float64(maxCount))
 			bar := styleBar.Render(strings.Repeat("█", filled)) +
 				styleDim.Render(strings.Repeat("░", barCols-filled))
-			name := truncate(u.UnitID, 26)
+			name := truncate(u.UnitID, 22)
 			saved := ""
-			if u.TokensSaved > 0 {
-				saved = styleDim.Render("  " + fmtNum(u.TokensSaved) + " saved")
+			if u.TokenCost > 0 {
+				saved = styleDim.Render("  " + fmtNum(u.TokenCost) + " saved")
 			}
-			lines = append(lines, fmt.Sprintf("  %-26s  %s  %s%s",
+			lines = append(lines, fmt.Sprintf("  %-22s  %s  %s%s",
 				name, bar,
 				styleValue.Render(fmt.Sprintf("%d", u.Count)),
 				saved,
@@ -100,18 +101,33 @@ func renderPanels(m model) string {
 		)
 	}
 
-	// ── Top Queries ───────────────────────────────────────────────────────────
+	// ── Memory Searches ────────────────────────────────────────────────────
 
-	if len(s.TopQueries) > 0 {
-		lines := make([]string, 0, len(s.TopQueries))
-		for _, q := range s.TopQueries {
-			lines = append(lines, fmt.Sprintf("  %s  %q",
-				styleDim.Render(fmt.Sprintf("%4d×", q.Count)),
-				truncate(q.Query, 52),
+	if len(s.RecentSearches) > 0 {
+		lines := make([]string, 0, len(s.RecentSearches))
+		for _, r := range s.RecentSearches {
+			ts := ""
+			if len(r.Timestamp) >= 19 {
+				// "2026-03-27T20:51:24..." → "20:51"
+				ts = r.Timestamp[11:16]
+			}
+			q := truncate(r.Query, 40)
+			var resultStr string
+			if r.ResultCount == 0 {
+				resultStr = styleDim.Render("0 results")
+			} else if r.ResultCount == 1 {
+				resultStr = styleSaved.Render("1 session recalled")
+			} else {
+				resultStr = styleSaved.Render(fmt.Sprintf("%d sessions recalled", r.ResultCount))
+			}
+			lines = append(lines, fmt.Sprintf("  %s  %-42s  %s",
+				styleDim.Render(ts),
+				styleValue.Render(fmt.Sprintf("%q", q)),
+				resultStr,
 			))
 		}
 		sections = append(sections,
-			stylePanel.Width(innerW).Render(" Top Queries\n\n"+strings.Join(lines, "\n")),
+			stylePanel.Width(innerW).Render(" Memory Searches\n\n"+strings.Join(lines, "\n")),
 			"",
 		)
 	}
@@ -124,9 +140,9 @@ func (m model) View() string {
 		return "initialising…"
 	}
 
-	innerW := m.width - 6 // outer border (2) + outer padding (2) + panel border (2)
+	innerW := m.width - 6
 
-	// ── Header (pinned) ───────────────────────────────────────────────────────
+	// ── Header (pinned) ───────────────────────────────────────────────────
 
 	spin := ""
 	if m.loading {
@@ -138,54 +154,91 @@ func (m model) View() string {
 		styleDim.Render(fmt.Sprintf("last %d day%s", m.days, plural(m.days))) +
 		spin
 
-	// ── Overview (pinned) ─────────────────────────────────────────────────────
+	// ── Overview (pinned) ─────────────────────────────────────────────────
 
 	s := m.stats
 
 	// kcp-commands row
-	cmdTokens := styleDim.Render("no data yet")
-	if s.InjectTokens > 0 {
-		cmdTokens = styleValue.Render(fmtNum(s.InjectTokens)+" tokens") +
-			styleDim.Render(" compact syntax injected")
-	}
-	cmdRow := fmt.Sprintf("  %s   %s %s  →  %s",
+	cmdLine1 := fmt.Sprintf("  %s   %s %s",
 		styleLabel.Render("kcp-commands"),
 		styleValue.Render(fmtNum(s.TotalInjects)),
-		styleDim.Render("Bash calls intercepted"),
-		cmdTokens,
+		styleDim.Render("commands guided"),
 	)
-
-	// kcp-mcp row
-	var mcpRow string
-	if s.TokensSaved > 0 {
-		mcpRow = fmt.Sprintf("  %s   %s %s  →  %s",
-			styleLabel.Render("kcp-memory   "),
-			styleValue.Render(fmtNum(s.TotalSearches)),
-			styleDim.Render("searches routed  "),
-			styleSaved.Render("▲ "+fmtNum(s.TokensSaved)+" tokens saved"),
+	if s.UniqueTools > 0 {
+		cmdLine1 += styleDim.Render(fmt.Sprintf("   %d unique tools", s.UniqueTools))
+	}
+	cmdLine2 := ""
+	if s.InjectTokens > 0 {
+		cmdLine2 = fmt.Sprintf("  %s   %s  %s",
+			styleDim.Render("            "),
+			styleValue.Render(fmt.Sprintf("~%s tokens of context delivered", fmtNum(s.InjectTokens))),
+			styleDim.Render(fmt.Sprintf("%d manifests available", s.ManifestCount)),
 		)
-	} else {
-		mcpRow = fmt.Sprintf("  %s   %s %s",
-			styleLabel.Render("kcp-memory   "),
-			styleValue.Render(fmtNum(s.TotalSearches)),
-			styleDim.Render("searches routed"),
+	} else if s.ManifestCount > 0 && s.TotalInjects == 0 {
+		cmdLine2 = fmt.Sprintf("  %s   %s",
+			styleDim.Render("            "),
+			styleDim.Render(fmt.Sprintf("%d manifests available, no commands intercepted yet", s.ManifestCount)),
 		)
 	}
 
-	ov := []string{cmdRow, mcpRow}
+	// kcp-memory row
+	var memLine1, memLine2 string
+	if s.MemSessions > 0 {
+		memLine1 = fmt.Sprintf("  %s   %s %s",
+			styleLabel.Render("kcp-memory  "),
+			styleValue.Render(fmtNum(s.MemSessions)),
+			styleDim.Render("sessions indexed"),
+		)
+		if s.MemProjects > 0 {
+			memLine1 += styleDim.Render(fmt.Sprintf("   %d projects", s.MemProjects))
+		}
+	} else {
+		memLine1 = fmt.Sprintf("  %s   %s",
+			styleLabel.Render("kcp-memory  "),
+			styleDim.Render("no sessions indexed yet"),
+		)
+	}
+	if s.TotalSearches == 0 {
+		memLine2 = fmt.Sprintf("  %s   %s",
+			styleDim.Render("            "),
+			styleDim.Render("no searches yet — ready when Claude needs it"),
+		)
+	} else if s.SuccessSearches == 0 {
+		memLine2 = fmt.Sprintf("  %s   %s   %s",
+			styleDim.Render("            "),
+			styleWarn.Render(fmt.Sprintf("0 of %d searches found results", s.TotalSearches)),
+			styleDim.Render("← memory building"),
+		)
+	} else {
+		pct := int(float64(s.SuccessSearches) / float64(s.TotalSearches) * 100)
+		memLine2 = fmt.Sprintf("  %s   %s",
+			styleDim.Render("            "),
+			styleSaved.Render(fmt.Sprintf("%d of %d searches recalled prior work (%d%%)",
+				s.SuccessSearches, s.TotalSearches, pct)),
+		)
+	}
+
+	// Projects row
+	ovLines := []string{cmdLine1}
+	if cmdLine2 != "" {
+		ovLines = append(ovLines, cmdLine2)
+	}
+	ovLines = append(ovLines, memLine1, memLine2)
+
 	if len(s.Projects) > 0 {
 		proj := strings.Join(s.Projects, ", ")
 		if len(proj) > 60 {
 			proj = proj[:57] + "…"
 		}
-		ov = append(ov, fmt.Sprintf("  %s   %s",
-			styleLabel.Render("Projects     "),
+		ovLines = append(ovLines, fmt.Sprintf("  %s   %s",
+			styleLabel.Render("Projects    "),
 			styleDim.Render(proj),
 		))
 	}
-	overview := stylePanel.Width(innerW).Render(" Overview\n\n" + strings.Join(ov, "\n"))
 
-	// ── Status bar (pinned) ───────────────────────────────────────────────────
+	overview := stylePanel.Width(innerW).Render(" Overview\n\n" + strings.Join(ovLines, "\n"))
+
+	// ── Status bar (pinned) ───────────────────────────────────────────────
 
 	ago := "—"
 	if !m.lastUpdate.IsZero() {
@@ -204,7 +257,7 @@ func (m model) View() string {
 		"q quit · d cycle days · r refresh · ↑↓ scroll%s · updated %s", scrollPct, ago,
 	))
 
-	// ── Compose: pinned top + viewport + pinned status ────────────────────────
+	// ── Compose ───────────────────────────────────────────────────────────
 
 	body := strings.Join([]string{
 		header,

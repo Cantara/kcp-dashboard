@@ -184,29 +184,79 @@ func TestLoadStats_TopUnits(t *testing.T) {
 	}
 }
 
-func TestLoadStats_TopQueries(t *testing.T) {
+func TestLoadStats_InjectTokens(t *testing.T) {
 	dbPath := createTestDB(t)
 	defer os.Remove(dbPath)
 
-	// "find widgets": 3 searches, "auth config": 1 search
+	// 3 injects at 250 tokens each = 750 total context delivered
 	for i := 0; i < 3; i++ {
-		insertEvent(t, dbPath, "search", "proj", "find widgets", "", 0, 0)
+		insertEvent(t, dbPath, "inject", "proj", "", "docker", 250, 0)
 	}
-	insertEvent(t, dbPath, "search", "proj", "auth config", "", 0, 0)
+	// 2 injects at 100 tokens each = 200
+	for i := 0; i < 2; i++ {
+		insertEvent(t, dbPath, "inject", "proj", "", "git", 100, 0)
+	}
 
 	s := loadStats(dbPath, 30, "")
 
 	if s.Err != nil {
 		t.Fatalf("loadStats error: %v", s.Err)
 	}
-	if len(s.TopQueries) != 2 {
-		t.Fatalf("TopQueries length: got %d, want 2", len(s.TopQueries))
+	// Total context delivered = 3*250 + 2*100 = 950
+	if s.InjectTokens != 950 {
+		t.Errorf("InjectTokens: got %d, want 950", s.InjectTokens)
 	}
-	if s.TopQueries[0].Query != "find widgets" {
-		t.Errorf("TopQueries[0].Query: got %q, want %q", s.TopQueries[0].Query, "find widgets")
+	if s.UniqueTools != 2 {
+		t.Errorf("UniqueTools: got %d, want 2", s.UniqueTools)
 	}
-	if s.TopQueries[0].Count != 3 {
-		t.Errorf("TopQueries[0].Count: got %d, want 3", s.TopQueries[0].Count)
+}
+
+func TestCountManifests(t *testing.T) {
+	// Create a temp directory simulating ~/.kcp/ with a commands/ subdir
+	tmpDir := t.TempDir()
+	cmdDir := tmpDir + "/commands"
+	if err := os.Mkdir(cmdDir, 0755); err != nil {
+		t.Fatalf("Mkdir: %v", err)
+	}
+
+	// Create some .yaml files and a non-yaml file
+	for _, name := range []string{"docker.yaml", "git.yaml", "npm.yaml", "README.md"} {
+		f, err := os.Create(cmdDir + "/" + name)
+		if err != nil {
+			t.Fatalf("Create %s: %v", name, err)
+		}
+		f.Close()
+	}
+
+	// countManifests expects a dbPath and looks for commands/ next to it
+	fakeDbPath := tmpDir + "/usage.db"
+	got := countManifests(fakeDbPath)
+	if got != 3 {
+		t.Errorf("countManifests: got %d, want 3", got)
+	}
+}
+
+func TestCountManifests_NoDir(t *testing.T) {
+	// When commands/ directory doesn't exist, should return 0
+	tmpDir := t.TempDir()
+	fakeDbPath := tmpDir + "/usage.db"
+	got := countManifests(fakeDbPath)
+	if got != 0 {
+		t.Errorf("countManifests with no dir: got %d, want 0", got)
+	}
+}
+
+func TestCountManifests_EmptyDir(t *testing.T) {
+	tmpDir := t.TempDir()
+	cmdDir := tmpDir + "/commands"
+	if err := os.Mkdir(cmdDir, 0755); err != nil {
+		t.Fatalf("Mkdir: %v", err)
+	}
+
+	fakeDbPath := tmpDir + "/usage.db"
+	got := countManifests(fakeDbPath)
+	if got != 0 {
+		t.Errorf("countManifests with empty dir: got %d, want 0", got)
 	}
 }
 

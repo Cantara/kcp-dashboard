@@ -17,7 +17,7 @@ const refreshInterval = 2 * time.Second
 //	blank:        1
 //	status bar:   1
 //	outer border: 2
-const fixedHeight = 14
+const fixedHeight = 17 // header(1) + blank(1) + overview border+padding+5lines(9) + blank(1) + status(1) + outer border(2) + extra(2)
 
 var dayOptions = []int{1, 7, 30, 90, 365}
 

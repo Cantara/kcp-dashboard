@@ -2,33 +2,52 @@ package main
 
 import (
 	"database/sql"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
 )
 
 type Stats struct {
-	TotalSearches    int64
-	TotalGets        int64
-	TotalInjects     int64
-	TokensSaved      int64 // kcp-mcp: manifest_token_total - token_estimate
-	InjectTokens     int64 // kcp-commands: SUM(token_estimate) for inject events
-	Projects         []string
-	TopUnits         []UnitRow
-	TopCommands      []UnitRow
-	TopQueries       []QueryRow
-	Err              error
+	// kcp-commands
+	TotalInjects      int64
+	UniqueTools       int64
+	InjectTokens      int64 // SUM(token_estimate) for inject events — context delivered
+	ManifestCount     int64 // count of *.yaml in ~/.kcp/commands/
+
+	// kcp-memory (search)
+	TotalSearches     int64
+	SuccessSearches   int64 // searches where result_count > 0
+	RecentSearches    []SearchLogRow
+
+	// kcp-memory (memory.db)
+	MemSessions       int64
+	MemProjects       int64
+
+	// kcp-mcp smart routing (kept for future use)
+	TotalGets         int64
+	TokensSaved       int64
+
+	// Misc
+	Projects          []string
+	TopCommands       []UnitRow
+	TopUnits          []UnitRow
+
+	Err               error
 }
 
 type UnitRow struct {
 	UnitID      string
 	Count       int64
-	TokensSaved int64
+	TokenCost   int64 // SUM(token_estimate) for display
 }
 
-type QueryRow struct {
-	Query string
-	Count int64
+type SearchLogRow struct {
+	Timestamp   string
+	Query       string
+	ResultCount int64
 }
 
 func loadStats(dbPath string, days int, project string) Stats {
@@ -49,24 +68,39 @@ func loadStats(dbPath string, days int, project string) Stats {
 
 	var s Stats
 
-	// Counts
+	// ── Event counts ────────────────────────────────────────────────────────
+
 	row := db.QueryRow(
-		`SELECT COUNT(CASE WHEN event_type='search' THEN 1 END),
+		`SELECT COUNT(CASE WHEN event_type='search'   THEN 1 END),
 		        COUNT(CASE WHEN event_type='get_unit' THEN 1 END),
-		        COUNT(CASE WHEN event_type='inject' THEN 1 END)
+		        COUNT(CASE WHEN event_type='inject'   THEN 1 END)
 		   FROM usage_events WHERE timestamp >= ?`+projectClause, base...)
 	row.Scan(&s.TotalSearches, &s.TotalGets, &s.TotalInjects)
 
-	// Tokens injected by kcp-commands (compact manifests)
-	row = db.QueryRow(
-		`SELECT COALESCE(SUM(token_estimate), 0)
-		   FROM usage_events
-		  WHERE event_type='inject'
-		    AND token_estimate IS NOT NULL
-		    AND timestamp >= ?`+projectClause, base...)
-	row.Scan(&s.InjectTokens)
+	// ── kcp-commands: context delivered ──────────────────────────────────────
 
-	// Tokens saved by kcp-mcp (smart routing)
+	row = db.QueryRow(
+		`SELECT COALESCE(SUM(token_estimate), 0),
+		        COUNT(DISTINCT unit_id)
+		   FROM usage_events
+		  WHERE event_type='inject' AND token_estimate IS NOT NULL
+		    AND timestamp >= ?`+projectClause, base...)
+	row.Scan(&s.InjectTokens, &s.UniqueTools)
+
+	// ── kcp-commands: manifest library size ─────────────────────────────────
+
+	s.ManifestCount = countManifests(dbPath)
+
+	// ── kcp-memory: search quality ──────────────────────────────────────────
+
+	row = db.QueryRow(
+		`SELECT COUNT(CASE WHEN result_count > 0 THEN 1 END)
+		   FROM usage_events
+		  WHERE event_type='search' AND timestamp >= ?`+projectClause, base...)
+	row.Scan(&s.SuccessSearches)
+
+	// ── kcp-mcp: tokens saved (smart routing) ───────────────────────────────
+
 	row = db.QueryRow(
 		`SELECT COALESCE(SUM(manifest_token_total - token_estimate), 0)
 		   FROM usage_events
@@ -76,56 +110,59 @@ func loadStats(dbPath string, days int, project string) Stats {
 		    AND timestamp >= ?`+projectClause, base...)
 	row.Scan(&s.TokensSaved)
 
-	// Top units
+	// ── Recent memory searches (timestamp + query + result_count) ────────────
+
 	rows, err := db.Query(
-		`SELECT unit_id, COUNT(*) cnt,
-		        COALESCE(SUM(manifest_token_total - token_estimate), 0) saved
+		`SELECT timestamp, COALESCE(query,''), COALESCE(result_count, 0)
 		   FROM usage_events
-		  WHERE event_type='get_unit' AND unit_id IS NOT NULL
-		    AND timestamp >= ?`+projectClause+`
-		  GROUP BY unit_id ORDER BY cnt DESC LIMIT 10`, base...)
+		  WHERE event_type='search' AND timestamp >= ?`+projectClause+`
+		  ORDER BY timestamp DESC LIMIT 8`, base...)
 	if err == nil {
 		defer rows.Close()
 		for rows.Next() {
-			var u UnitRow
-			rows.Scan(&u.UnitID, &u.Count, &u.TokensSaved)
-			s.TopUnits = append(s.TopUnits, u)
+			var r SearchLogRow
+			rows.Scan(&r.Timestamp, &r.Query, &r.ResultCount)
+			s.RecentSearches = append(s.RecentSearches, r)
 		}
 	}
 
-	// Top commands (inject events)
-	rows1b, err := db.Query(
-		`SELECT unit_id, COUNT(*) cnt, 0
+	// ── Top commands (inject events) with token cost ─────────────────────────
+
+	rows1, err := db.Query(
+		`SELECT unit_id, COUNT(*) cnt, COALESCE(SUM(token_estimate), 0)
 		   FROM usage_events
 		  WHERE event_type='inject' AND unit_id IS NOT NULL
 		    AND timestamp >= ?`+projectClause+`
 		  GROUP BY unit_id ORDER BY cnt DESC LIMIT 10`, base...)
 	if err == nil {
-		defer rows1b.Close()
-		for rows1b.Next() {
+		defer rows1.Close()
+		for rows1.Next() {
 			var u UnitRow
-			rows1b.Scan(&u.UnitID, &u.Count, &u.TokensSaved)
+			rows1.Scan(&u.UnitID, &u.Count, &u.TokenCost)
 			s.TopCommands = append(s.TopCommands, u)
 		}
 	}
 
-	// Top queries
+	// ── Top units (get_unit events) ─────────────────────────────────────────
+
 	rows2, err := db.Query(
-		`SELECT query, COUNT(*) cnt
+		`SELECT unit_id, COUNT(*) cnt,
+		        COALESCE(SUM(manifest_token_total - token_estimate), 0)
 		   FROM usage_events
-		  WHERE event_type='search' AND query IS NOT NULL
+		  WHERE event_type='get_unit' AND unit_id IS NOT NULL
 		    AND timestamp >= ?`+projectClause+`
-		  GROUP BY query ORDER BY cnt DESC LIMIT 8`, base...)
+		  GROUP BY unit_id ORDER BY cnt DESC LIMIT 10`, base...)
 	if err == nil {
 		defer rows2.Close()
 		for rows2.Next() {
-			var q QueryRow
-			rows2.Scan(&q.Query, &q.Count)
-			s.TopQueries = append(s.TopQueries, q)
+			var u UnitRow
+			rows2.Scan(&u.UnitID, &u.Count, &u.TokenCost)
+			s.TopUnits = append(s.TopUnits, u)
 		}
 	}
 
-	// Projects
+	// ── Projects ────────────────────────────────────────────────────────────
+
 	rows3, err := db.Query(
 		`SELECT DISTINCT project FROM usage_events
 		  WHERE timestamp >= ?`+projectClause+` AND project IS NOT NULL
@@ -139,5 +176,36 @@ func loadStats(dbPath string, days int, project string) Stats {
 		}
 	}
 
+	// ── kcp-memory: session + project counts from memory.db ─────────────────
+
+	memDbPath := filepath.Join(filepath.Dir(dbPath), "memory.db")
+	loadMemoryStats(memDbPath, &s)
+
 	return s
+}
+
+func loadMemoryStats(memDbPath string, s *Stats) {
+	db, err := sql.Open("sqlite", "file:"+memDbPath+"?mode=ro&_journal_mode=WAL")
+	if err != nil {
+		return
+	}
+	defer db.Close()
+	db.QueryRow(`SELECT COUNT(*) FROM sessions`).Scan(&s.MemSessions)
+	db.QueryRow(`SELECT COUNT(DISTINCT project_dir) FROM sessions`).Scan(&s.MemProjects)
+}
+
+// countManifests counts *.yaml files in the commands dir next to usage.db.
+func countManifests(dbPath string) int64 {
+	dir := filepath.Join(filepath.Dir(dbPath), "commands")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return 0
+	}
+	var n int64
+	for _, e := range entries {
+		if !e.IsDir() && strings.HasSuffix(e.Name(), ".yaml") {
+			n++
+		}
+	}
+	return n
 }
