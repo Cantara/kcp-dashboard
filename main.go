@@ -9,6 +9,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+const version = "0.3.0"
+
 func main() {
 	days    := flag.Int("days", 30, "Days to include (1, 7, 30, 90, 365)")
 	project := flag.String("project", "", "Filter by project name")

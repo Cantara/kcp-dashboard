@@ -133,6 +133,7 @@ func (m model) View() string {
 		spin = " " + styleDim.Render("↻")
 	}
 	header := styleTitle.Render("KCP Dashboard") +
+		styleDim.Render(" v"+version) +
 		"  " + styleDim.Render("·") + "  " +
 		styleDim.Render(fmt.Sprintf("last %d day%s", m.days, plural(m.days))) +
 		spin
@@ -158,17 +159,16 @@ func (m model) View() string {
 	var mcpRow string
 	if s.TokensSaved > 0 {
 		mcpRow = fmt.Sprintf("  %s   %s %s  →  %s",
-			styleLabel.Render("kcp-mcp      "),
+			styleLabel.Render("kcp-memory   "),
 			styleValue.Render(fmtNum(s.TotalSearches)),
-			styleDim.Render("queries routed   "),
+			styleDim.Render("searches routed  "),
 			styleSaved.Render("▲ "+fmtNum(s.TokensSaved)+" tokens saved"),
 		)
 	} else {
-		mcpRow = fmt.Sprintf("  %s   %s %s  →  %s",
-			styleLabel.Render("kcp-mcp      "),
+		mcpRow = fmt.Sprintf("  %s   %s %s",
+			styleLabel.Render("kcp-memory   "),
 			styleValue.Render(fmtNum(s.TotalSearches)),
-			styleDim.Render("queries routed   "),
-			styleDim.Render("▲ 0  (no token_estimate in knowledge.yaml)"),
+			styleDim.Render("searches routed"),
 		)
 	}
 
