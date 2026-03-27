@@ -20,9 +20,12 @@ jobs:
 
       - name: Build binaries
         run: |
-          GOOS=linux  GOARCH=amd64 go build -ldflags="-s -w" -o dist/kcp-dashboard-linux-amd64   .
-          GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o dist/kcp-dashboard-darwin-amd64  .
-          GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o dist/kcp-dashboard-darwin-arm64  .
+          mkdir -p dist
+          CGO_ENABLED=0 GOOS=linux   GOARCH=amd64 go build -ldflags="-s -w" -o dist/kcp-dashboard-linux-amd64      .
+          CGO_ENABLED=0 GOOS=linux   GOARCH=arm64 go build -ldflags="-s -w" -o dist/kcp-dashboard-linux-arm64      .
+          CGO_ENABLED=0 GOOS=darwin  GOARCH=amd64 go build -ldflags="-s -w" -o dist/kcp-dashboard-darwin-amd64     .
+          CGO_ENABLED=0 GOOS=darwin  GOARCH=arm64 go build -ldflags="-s -w" -o dist/kcp-dashboard-darwin-arm64     .
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o dist/kcp-dashboard-windows-amd64.exe .
 
       - name: Publish release
         uses: softprops/action-gh-release@v2
@@ -52,5 +55,7 @@ jobs:
             Requires `~/.kcp/usage.db` — populated by [kcp-mcp bridge](https://github.com/Cantara/knowledge-context-protocol) v0.14.3+.
           files: |
             dist/kcp-dashboard-linux-amd64
+            dist/kcp-dashboard-linux-arm64
             dist/kcp-dashboard-darwin-amd64
             dist/kcp-dashboard-darwin-arm64
+            dist/kcp-dashboard-windows-amd64.exe

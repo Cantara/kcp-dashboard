@@ -20,11 +20,20 @@ curl -fsSL https://github.com/Cantara/kcp-dashboard/releases/latest/download/kcp
 chmod +x ~/.local/bin/kcp-dashboard
 ```
 
-**Linux**
+**Linux (amd64)**
 ```bash
 curl -fsSL https://github.com/Cantara/kcp-dashboard/releases/latest/download/kcp-dashboard-linux-amd64 -o ~/.local/bin/kcp-dashboard
 chmod +x ~/.local/bin/kcp-dashboard
 ```
+
+**Linux (arm64)**
+```bash
+curl -fsSL https://github.com/Cantara/kcp-dashboard/releases/latest/download/kcp-dashboard-linux-arm64 -o ~/.local/bin/kcp-dashboard
+chmod +x ~/.local/bin/kcp-dashboard
+```
+
+**Windows**
+Download [`kcp-dashboard-windows-amd64.exe`](https://github.com/Cantara/kcp-dashboard/releases/latest/download/kcp-dashboard-windows-amd64.exe) and run it from Windows Terminal or PowerShell.
 
 ## Usage
 

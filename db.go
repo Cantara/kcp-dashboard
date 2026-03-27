@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"time"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 )
 
 type Stats struct {
@@ -29,7 +29,7 @@ type QueryRow struct {
 }
 
 func loadStats(dbPath string, days int, project string) Stats {
-	db, err := sql.Open("sqlite3", "file:"+dbPath+"?mode=ro&_journal_mode=WAL")
+	db, err := sql.Open("sqlite", "file:"+dbPath+"?mode=ro&_journal_mode=WAL")
 	if err != nil {
 		return Stats{Err: err}
 	}
