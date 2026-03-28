@@ -9,7 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-const version = "0.6.0"
+const version = "0.22.0"
 
 func main() {
 	days    := flag.Int("days", 30, "Days to include (1, 7, 30, 90, 365)")
@@ -19,7 +19,7 @@ func main() {
 	dbPath := filepath.Join(os.Getenv("HOME"), ".kcp", "usage.db")
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
 		fmt.Fprintln(os.Stderr, "No usage data found at", dbPath)
-		fmt.Fprintln(os.Stderr, "Use kcp-mcp v0.14.3+ to start collecting statistics.")
+		fmt.Fprintln(os.Stderr, "Install kcp-commands v0.20.0+ and/or kcp-memory v0.20.0+ to populate usage.db.")
 		os.Exit(1)
 	}
 
