@@ -24,17 +24,18 @@ var dayOptions = []int{1, 7, 30, 90, 365}
 type tickMsg time.Time
 
 type model struct {
-	dbPath     string
-	stats      Stats
-	lastUpdate time.Time
-	days       int
-	dayIndex   int
-	project    string
-	width      int
-	height     int
-	loading    bool
-	vp         viewport.Model
-	vpReady    bool
+	dbPath           string
+	stats            Stats
+	lastUpdate       time.Time
+	days             int
+	dayIndex         int
+	project          string
+	width            int
+	height           int
+	loading          bool
+	vp               viewport.Model
+	vpReady          bool
+	contextHealthTop bool // false = recent sessions, true = top token burners
 }
 
 func newModel(dbPath string, days int, project string) model {
@@ -109,6 +110,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "r", "R":
 			m.loading = true
 			return m, fetchCmd(m.dbPath, m.days, m.project)
+		case "t", "T":
+			m.contextHealthTop = !m.contextHealthTop
+			if m.vpReady {
+				m.vp.SetContent(renderPanels(m))
+			}
+			return m, nil
 		}
 
 	case Stats:

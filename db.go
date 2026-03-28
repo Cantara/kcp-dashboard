@@ -43,6 +43,14 @@ type Stats struct {
 	TotalGets         int64
 	TokensSaved       int64
 
+	// Context Health
+	AvgSessionTokens     float64         // avg sum(token_estimate) per session
+	MaxSessionTokens     int64           // worst session in the period
+	SessionsOverBudget   int64           // sessions where inject total > 5000 tokens
+	TotalInjectSessions  int64           // sessions with at least one inject
+	RecentInjectSessions []InjectSession // last 5 sessions, newest first
+	TopTokenBurners      []UnitRow       // top 5 manifests by total token cost
+
 	// Misc
 	Projects          []string
 	TopCommands       []UnitRow
@@ -69,6 +77,13 @@ type SearchLogRow struct {
 	Timestamp   string
 	Query       string
 	ResultCount int64
+}
+
+type InjectSession struct {
+	SessionID   string
+	TotalTokens int64
+	InjectCount int64
+	LastSeen    string // UTC timestamp string from DB
 }
 
 func loadStats(dbPath string, days int, project string) Stats {
@@ -180,6 +195,50 @@ func loadStats(dbPath string, days int, project string) Stats {
 			var u UnitRow
 			rows2.Scan(&u.UnitID, &u.Count, &u.TokenCost)
 			s.TopUnits = append(s.TopUnits, u)
+		}
+	}
+
+	// ── Context Health: session-level injection analysis ────────────────────
+
+	innerQ := `SELECT session_id, SUM(token_estimate) AS st
+	               FROM usage_events
+	              WHERE event_type='inject' AND token_estimate IS NOT NULL
+	                AND timestamp >= ?` + projectClause + `
+	              GROUP BY session_id`
+
+	row = db.QueryRow(`SELECT COALESCE(AVG(st), 0), COALESCE(MAX(st), 0),
+	                          COUNT(*), COUNT(CASE WHEN st > 5000 THEN 1 END)
+	                     FROM (`+innerQ+`)`, base...)
+	row.Scan(&s.AvgSessionTokens, &s.MaxSessionTokens, &s.TotalInjectSessions, &s.SessionsOverBudget)
+
+	rowsBurners, errB := db.Query(
+		`SELECT unit_id, COUNT(*) cnt, COALESCE(SUM(token_estimate), 0)
+		   FROM usage_events
+		  WHERE event_type='inject' AND unit_id IS NOT NULL AND token_estimate IS NOT NULL
+		    AND timestamp >= ?`+projectClause+`
+		  GROUP BY unit_id ORDER BY 3 DESC LIMIT 5`, base...)
+	if errB == nil {
+		defer rowsBurners.Close()
+		for rowsBurners.Next() {
+			var u UnitRow
+			rowsBurners.Scan(&u.UnitID, &u.Count, &u.TokenCost)
+			s.TopTokenBurners = append(s.TopTokenBurners, u)
+		}
+	}
+
+	rowsSessions, errS := db.Query(
+		`SELECT session_id, COALESCE(SUM(token_estimate), 0), COUNT(*), MAX(timestamp)
+		   FROM usage_events
+		  WHERE event_type='inject' AND token_estimate IS NOT NULL
+		    AND timestamp >= ?`+projectClause+`
+		  GROUP BY session_id
+		  ORDER BY MAX(timestamp) DESC LIMIT 5`, base...)
+	if errS == nil {
+		defer rowsSessions.Close()
+		for rowsSessions.Next() {
+			var r InjectSession
+			rowsSessions.Scan(&r.SessionID, &r.TotalTokens, &r.InjectCount, &r.LastSeen)
+			s.RecentInjectSessions = append(s.RecentInjectSessions, r)
 		}
 	}
 

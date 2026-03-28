@@ -175,6 +175,90 @@ func renderPanels(m model) string {
 		)
 	}
 
+	// ── Context Health ─────────────────────────────────────────────────────
+
+	if s.TotalInjectSessions > 0 {
+		// Summary line
+		budgetNote := styleSaved.Render("✓ all within budget")
+		if s.SessionsOverBudget > 0 {
+			budgetNote = styleWarn.Render(fmt.Sprintf("! %d over 5k", s.SessionsOverBudget))
+		}
+		summaryLine := fmt.Sprintf("  %s  avg ~%s tok/session  ·  max ~%s  ·  %s",
+			styleDim.Render(fmt.Sprintf("%s sessions", fmtNum(s.TotalInjectSessions))),
+			fmtNum(int64(s.AvgSessionTokens)),
+			fmtNum(s.MaxSessionTokens),
+			budgetNote,
+		)
+
+		lines := []string{summaryLine}
+
+		if m.contextHealthTop {
+			if len(s.TopTokenBurners) > 0 {
+				lines = append(lines, "")
+				lines = append(lines, "  "+styleLabel.Render(fmt.Sprintf("Top by token cost (%dd):", m.days)))
+				var maxCost int64
+				for _, u := range s.TopTokenBurners {
+					if u.TokenCost > maxCost {
+						maxCost = u.TokenCost
+					}
+				}
+				const barW = 16
+				for _, u := range s.TopTokenBurners {
+					rate := float64(0)
+					if maxCost > 0 {
+						rate = float64(u.TokenCost) / float64(maxCost)
+					}
+					lines = append(lines, fmt.Sprintf("  %-22s  %s  %s  %s",
+						truncate(u.UnitID, 22),
+						renderBar(rate, barW),
+						styleValue.Render(fmt.Sprintf("~%s tok", fmtNum(u.TokenCost))),
+						styleDim.Render(fmt.Sprintf("%d×", u.Count)),
+					))
+				}
+			}
+		} else {
+			if len(s.RecentInjectSessions) > 0 {
+				lines = append(lines, "")
+				lines = append(lines, "  "+styleLabel.Render("Recent sessions (newest first):"))
+				var maxTok int64
+				for _, r := range s.RecentInjectSessions {
+					if r.TotalTokens > maxTok {
+						maxTok = r.TotalTokens
+					}
+				}
+				const barW = 16
+				for _, r := range s.RecentInjectSessions {
+					rate := float64(0)
+					if maxTok > 0 {
+						rate = float64(r.TotalTokens) / float64(maxTok)
+					}
+					when := fmtSessionTime(r.LastSeen)
+					sid := r.SessionID
+					if len(sid) > 8 {
+						sid = sid[:8]
+					}
+					flag := ""
+					if r.TotalTokens > 5000 {
+						flag = " " + styleWarn.Render("!")
+					}
+					lines = append(lines, fmt.Sprintf("  %s  %-12s  %s  %s  %s%s",
+						styleDim.Render(sid),
+						styleDim.Render(when),
+						renderBar(rate, barW),
+						styleValue.Render(fmt.Sprintf("~%s tok", fmtNum(r.TotalTokens))),
+						styleDim.Render(fmt.Sprintf("%d injects", r.InjectCount)),
+						flag,
+					))
+				}
+			}
+		}
+
+		sections = append(sections,
+			stylePanel.Width(innerW).Render(" Context Health\n\n"+strings.Join(lines, "\n")),
+			"",
+		)
+	}
+
 	// ── Memory Searches ────────────────────────────────────────────────────
 
 	if len(s.RecentSearches) > 0 {
@@ -345,7 +429,7 @@ func (m model) View() string {
 		scrollPct = fmt.Sprintf(" · %.0f%%", m.vp.ScrollPercent()*100)
 	}
 	status := styleDim.Render(fmt.Sprintf(
-		"q quit · d cycle days · r refresh · ↑↓ scroll%s · updated %s", scrollPct, ago,
+		"q quit · d cycle days · r refresh · t context · ↑↓ scroll%s · updated %s", scrollPct, ago,
 	))
 
 	// ── Compose ───────────────────────────────────────────────────────────
@@ -385,4 +469,30 @@ func truncate(s string, max int) string {
 		return s
 	}
 	return s[:max-1] + "…"
+}
+
+// fmtSessionTime formats a UTC timestamp string from the DB into a human-friendly label.
+// "today HH:MM", "yesterday HH:MM", or "MMM DD HH:MM".
+func fmtSessionTime(ts string) string {
+	if len(ts) < 16 {
+		return ts
+	}
+	t, err := time.Parse("2006-01-02T15:04:05Z", ts)
+	if err != nil {
+		// Try without seconds
+		t, err = time.Parse("2006-01-02T15:04Z", ts[:16]+"Z")
+		if err != nil {
+			return ts[:16]
+		}
+	}
+	now := time.Now().UTC()
+	hhmm := t.Format("15:04")
+	switch {
+	case t.Year() == now.Year() && t.YearDay() == now.YearDay():
+		return "today " + hhmm
+	case t.Year() == now.Year() && t.YearDay() == now.YearDay()-1:
+		return "yest. " + hhmm
+	default:
+		return t.Format("Jan 02 ") + hhmm
+	}
 }
