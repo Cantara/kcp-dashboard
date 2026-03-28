@@ -26,6 +26,18 @@ type Stats struct {
 	MemSessions       int64
 	MemProjects       int64
 
+	// kcp-memory (memory.db) — tool_events
+	TotalBashCalls    int64
+	ManifestHitRate   float64        // manifested / total (0.0–1.0)
+	FilteredRetryRate float64        // retry rate excluding iterative commands (0.0–1.0)
+	HelpFollowupRate  float64        // --help calls within 5min of inject (0.0–1.0)
+	QualityAlerts     []QualityAlert
+
+	// kcp-memory (memory.db) — sessions
+	SessionSizeDist   [5]int64 // [1-5, 6-20, 21-50, 51-100, 100+] turns
+	AvgTurns          float64
+	AvgToolCalls      float64
+
 	// kcp-mcp smart routing (kept for future use)
 	TotalGets         int64
 	TokensSaved       int64
@@ -36,6 +48,14 @@ type Stats struct {
 	TopUnits          []UnitRow
 
 	Err               error
+}
+
+type QualityAlert struct {
+	ManifestKey string
+	TotalCalls  int64
+	RetryRate   float64
+	HelpRate    float64
+	Score       float64 // lower = worse: 0.5*retry + 0.5*help
 }
 
 type UnitRow struct {
@@ -179,19 +199,147 @@ func loadStats(dbPath string, days int, project string) Stats {
 	// ── kcp-memory: session + project counts from memory.db ─────────────────
 
 	memDbPath := filepath.Join(filepath.Dir(dbPath), "memory.db")
-	loadMemoryStats(memDbPath, &s)
+	loadMemoryStats(memDbPath, &s, days)
 
 	return s
 }
 
-func loadMemoryStats(memDbPath string, s *Stats) {
+func loadMemoryStats(memDbPath string, s *Stats, days int) {
 	db, err := sql.Open("sqlite", "file:"+memDbPath+"?mode=ro&_journal_mode=WAL")
 	if err != nil {
 		return
 	}
 	defer db.Close()
+
+	since := time.Now().AddDate(0, 0, -days).UTC().Format("2006-01-02T15:04:05Z")
+
 	db.QueryRow(`SELECT COUNT(*) FROM sessions`).Scan(&s.MemSessions)
 	db.QueryRow(`SELECT COUNT(DISTINCT project_dir) FROM sessions`).Scan(&s.MemProjects)
+
+	// ── Manifest coverage ────────────────────────────────────────────────
+	var total, manifested int64
+	db.QueryRow(`SELECT
+		COUNT(*) as total,
+		COUNT(CASE WHEN manifest_key IS NOT NULL AND manifest_key != '' THEN 1 END) as manifested
+	FROM tool_events
+	WHERE event_ts >= ?`, since).Scan(&total, &manifested)
+	s.TotalBashCalls = total
+	if total > 0 {
+		s.ManifestHitRate = float64(manifested) / float64(total)
+	}
+
+	// ── Session size distribution + averages ─────────────────────────────
+	rows, err := db.Query(`SELECT turn_count, tool_call_count
+		FROM sessions WHERE started_at >= ?`, since)
+	if err == nil {
+		defer rows.Close()
+		var totalTurns, totalToolCalls, sessionCount int64
+		for rows.Next() {
+			var turns, tools int64
+			rows.Scan(&turns, &tools)
+			totalTurns += turns
+			totalToolCalls += tools
+			sessionCount++
+			switch {
+			case turns <= 5:
+				s.SessionSizeDist[0]++
+			case turns <= 20:
+				s.SessionSizeDist[1]++
+			case turns <= 50:
+				s.SessionSizeDist[2]++
+			case turns <= 100:
+				s.SessionSizeDist[3]++
+			default:
+				s.SessionSizeDist[4]++
+			}
+		}
+		if sessionCount > 0 {
+			s.AvgTurns = float64(totalTurns) / float64(sessionCount)
+			s.AvgToolCalls = float64(totalToolCalls) / float64(sessionCount)
+		}
+	}
+
+	// ── Filtered retry rate ──────────────────────────────────────────────
+	iterExclude := "('ls','grep','cat','head','find','cd','tail','wc','echo','sort','uniq','cut')"
+
+	var retryCount, totalAction int64
+	db.QueryRow(`SELECT COUNT(*) FROM tool_events e1
+		WHERE e1.manifest_key IS NOT NULL AND e1.manifest_key != ''
+		  AND e1.manifest_key NOT IN `+iterExclude+`
+		  AND e1.event_ts >= ?
+		  AND EXISTS (
+			SELECT 1 FROM tool_events e2
+			WHERE e2.session_id = e1.session_id
+			  AND e2.manifest_key = e1.manifest_key
+			  AND e2.id > e1.id
+			  AND e2.id <= e1.id + 20
+			  AND (julianday(e2.event_ts) - julianday(e1.event_ts)) * 86400 <= 90
+		  )`, since).Scan(&retryCount)
+
+	db.QueryRow(`SELECT COUNT(*) FROM tool_events
+		WHERE manifest_key IS NOT NULL AND manifest_key != ''
+		  AND manifest_key NOT IN `+iterExclude+`
+		  AND event_ts >= ?`, since).Scan(&totalAction)
+
+	if totalAction > 0 {
+		s.FilteredRetryRate = float64(retryCount) / float64(totalAction)
+	}
+
+	// ── Help-followup rate ───────────────────────────────────────────────
+	var helpCount, totalManifested int64
+	db.QueryRow(`SELECT COUNT(DISTINCT e1.id) FROM tool_events e1
+		WHERE e1.manifest_key IS NOT NULL AND e1.manifest_key != ''
+		  AND e1.event_ts >= ?
+		  AND EXISTS (
+			SELECT 1 FROM tool_events e2
+			WHERE e2.session_id = e1.session_id
+			  AND e2.id > e1.id
+			  AND (e2.command LIKE '%--%help%' OR e2.command LIKE '% -h %' OR e2.command LIKE '% -h')
+			  AND (julianday(e2.event_ts) - julianday(e1.event_ts)) * 86400 <= 300
+		  )`, since).Scan(&helpCount)
+
+	db.QueryRow(`SELECT COUNT(*) FROM tool_events
+		WHERE manifest_key IS NOT NULL AND manifest_key != ''
+		  AND event_ts >= ?`, since).Scan(&totalManifested)
+
+	if totalManifested > 0 {
+		s.HelpFollowupRate = float64(helpCount) / float64(totalManifested)
+	}
+
+	// ── Quality alerts (top 5 worst manifests) ───────────────────────────
+	alertRows, err := db.Query(`SELECT manifest_key, COUNT(*) as total_calls,
+		CAST(SUM(CASE WHEN EXISTS (
+			SELECT 1 FROM tool_events e2
+			WHERE e2.session_id = tool_events.session_id
+			  AND e2.manifest_key = tool_events.manifest_key
+			  AND e2.id > tool_events.id
+			  AND e2.id <= tool_events.id + 20
+			  AND (julianday(e2.event_ts) - julianday(tool_events.event_ts)) * 86400 <= 90
+		) THEN 1 ELSE 0 END) AS REAL) / COUNT(*) as retry_rate,
+		CAST(SUM(CASE WHEN EXISTS (
+			SELECT 1 FROM tool_events e2
+			WHERE e2.session_id = tool_events.session_id
+			  AND e2.id > tool_events.id
+			  AND (e2.command LIKE '%--%help%' OR e2.command LIKE '% -h %')
+			  AND (julianday(e2.event_ts) - julianday(tool_events.event_ts)) * 86400 <= 300
+		) THEN 1 ELSE 0 END) AS REAL) / COUNT(*) as help_rate
+	FROM tool_events
+	WHERE manifest_key IS NOT NULL AND manifest_key != ''
+	  AND manifest_key NOT IN `+iterExclude+`
+	  AND event_ts >= ?
+	GROUP BY manifest_key
+	HAVING total_calls >= 10
+	ORDER BY (retry_rate * 0.5 + help_rate * 0.5) DESC
+	LIMIT 5`, since)
+	if err == nil {
+		defer alertRows.Close()
+		for alertRows.Next() {
+			var a QualityAlert
+			alertRows.Scan(&a.ManifestKey, &a.TotalCalls, &a.RetryRate, &a.HelpRate)
+			a.Score = a.RetryRate*0.5 + a.HelpRate*0.5
+			s.QualityAlerts = append(s.QualityAlerts, a)
+		}
+	}
 }
 
 // countManifests counts *.yaml files in the commands dir next to usage.db.

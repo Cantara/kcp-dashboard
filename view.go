@@ -36,11 +36,117 @@ var (
 			Padding(0, 1)
 )
 
+// renderBar renders a progress bar of the given width with filled/empty blocks.
+func renderBar(rate float64, width int) string {
+	filled := int(rate * float64(width))
+	if filled > width {
+		filled = width
+	}
+	if filled < 0 {
+		filled = 0
+	}
+	return styleBar.Render(strings.Repeat("█", filled)) +
+		styleDim.Render(strings.Repeat("░", width-filled))
+}
+
 // renderPanels builds the scrollable section below the overview.
 func renderPanels(m model) string {
 	innerW := m.width - 6
 	s := m.stats
 	var sections []string
+
+	// ── Guidance Effects ───────────────────────────────────────────────────
+
+	if s.TotalBashCalls > 0 {
+		const barW = 20
+		lines := []string{
+			fmt.Sprintf("  %-22s %s  %s",
+				styleLabel.Render("Manifest coverage"),
+				renderBar(s.ManifestHitRate, barW),
+				styleValue.Render(fmt.Sprintf("%d%% of Bash calls are guided", int(s.ManifestHitRate*100))),
+			),
+			fmt.Sprintf("  %-22s %s  %s",
+				styleLabel.Render("Retry rate"),
+				renderBar(s.FilteredRetryRate, barW),
+				styleValue.Render(fmt.Sprintf("%d%% (action cmds, excl. iter.)", int(s.FilteredRetryRate*100))),
+			),
+			fmt.Sprintf("  %-22s %s  %s",
+				styleLabel.Render("Help followup"),
+				renderBar(s.HelpFollowupRate, barW),
+				styleValue.Render(fmt.Sprintf("%.1f%% after inject", s.HelpFollowupRate*100)),
+			),
+		}
+
+		if len(s.QualityAlerts) > 0 {
+			lines = append(lines, "")
+			lines = append(lines, "  "+styleLabel.Render("Quality alerts:"))
+			for _, a := range s.QualityAlerts {
+				sym := styleSaved.Render("  *")
+				if a.Score > 0.2 {
+					sym = styleWarn.Render("  !")
+				}
+				lines = append(lines, fmt.Sprintf("  %s %-12s %s  retry=%d%%  help=%d%%",
+					sym,
+					truncate(a.ManifestKey, 12),
+					styleDim.Render(fmt.Sprintf("%d calls", a.TotalCalls)),
+					int(a.RetryRate*100),
+					int(a.HelpRate*100),
+				))
+			}
+		}
+
+		sections = append(sections,
+			stylePanel.Width(innerW).Render(" Guidance Effects\n\n"+strings.Join(lines, "\n")),
+			"",
+		)
+	}
+
+	// ── Session Profile ───────────────────────────────────────────────────
+
+	if s.MemSessions > 0 {
+		// Count sessions in the current period
+		var periodSessions int64
+		for _, c := range s.SessionSizeDist {
+			periodSessions += c
+		}
+
+		if periodSessions > 0 {
+			headerLine := fmt.Sprintf("  %s  %s  %s",
+				styleValue.Render(fmt.Sprintf("%s sessions", fmtNum(periodSessions))),
+				styleDim.Render(fmt.Sprintf("avg %.0f turns", s.AvgTurns)),
+				styleDim.Render(fmt.Sprintf("avg %.0f tool calls", s.AvgToolCalls)),
+			)
+
+			bucketLabels := [5]string{"1-5 turns", "6-20 turns", "21-50 turns", "51-100 turns", "100+ turns"}
+			var maxBucket int64
+			for _, c := range s.SessionSizeDist {
+				if c > maxBucket {
+					maxBucket = c
+				}
+			}
+
+			const barW = 20
+			var distLines []string
+			for i, c := range s.SessionSizeDist {
+				pct := int(float64(c) / float64(periodSessions) * 100)
+				rate := float64(0)
+				if maxBucket > 0 {
+					rate = float64(c) / float64(maxBucket)
+				}
+				distLines = append(distLines, fmt.Sprintf("  %-14s %s  %s",
+					styleLabel.Render(bucketLabels[i]),
+					renderBar(rate, barW),
+					styleDim.Render(fmt.Sprintf("%s (%d%%)", fmtNum(c), pct)),
+				))
+			}
+
+			lines := append([]string{headerLine, ""}, distLines...)
+			sections = append(sections,
+				stylePanel.Width(innerW).Render(" Session Profile\n\n"+strings.Join(lines, "\n")),
+				"",
+			)
+		}
+	}
 
 	// ── Commands Guided ────────────────────────────────────────────────────
 
@@ -65,38 +171,6 @@ func renderPanels(m model) string {
 		}
 		sections = append(sections,
 			stylePanel.Width(innerW).Render(" Commands Guided\n\n"+strings.Join(lines, "\n")),
-			"",
-		)
-	}
-
-	// ── Top Units (kcp-mcp smart routing) ─────────────────────────────────
-
-	if len(s.TopUnits) > 0 {
-		var maxCount int64
-		for _, u := range s.TopUnits {
-			if u.Count > maxCount {
-				maxCount = u.Count
-			}
-		}
-		const barCols = 20
-		lines := make([]string, 0, len(s.TopUnits))
-		for _, u := range s.TopUnits {
-			filled := int(float64(barCols) * float64(u.Count) / float64(maxCount))
-			bar := styleBar.Render(strings.Repeat("█", filled)) +
-				styleDim.Render(strings.Repeat("░", barCols-filled))
-			name := truncate(u.UnitID, 22)
-			saved := ""
-			if u.TokenCost > 0 {
-				saved = styleDim.Render("  " + fmtNum(u.TokenCost) + " saved")
-			}
-			lines = append(lines, fmt.Sprintf("  %-22s  %s  %s%s",
-				name, bar,
-				styleValue.Render(fmt.Sprintf("%d", u.Count)),
-				saved,
-			))
-		}
-		sections = append(sections,
-			stylePanel.Width(innerW).Render(" Top Units\n\n"+strings.Join(lines, "\n")),
 			"",
 		)
 	}
@@ -169,10 +243,18 @@ func (m model) View() string {
 	}
 	cmdLine2 := ""
 	if s.InjectTokens > 0 {
-		cmdLine2 = fmt.Sprintf("  %s   %s  %s",
+		coveragePart := ""
+		if s.ManifestHitRate > 0 {
+			coveragePart = fmt.Sprintf("  %s manifest coverage",
+				styleValue.Render(fmt.Sprintf("%d%%", int(s.ManifestHitRate*100))))
+		} else {
+			coveragePart = styleDim.Render(fmt.Sprintf("%d manifests available", s.ManifestCount))
+		}
+		cmdLine2 = fmt.Sprintf("  %s   %s  %s  %s",
 			styleDim.Render("            "),
 			styleValue.Render(fmt.Sprintf("~%s tokens of context delivered", fmtNum(s.InjectTokens))),
-			styleDim.Render(fmt.Sprintf("%d manifests available", s.ManifestCount)),
+			styleDim.Render("·"),
+			coveragePart,
 		)
 	} else if s.ManifestCount > 0 && s.TotalInjects == 0 {
 		cmdLine2 = fmt.Sprintf("  %s   %s",
@@ -204,10 +286,14 @@ func (m model) View() string {
 			styleDim.Render("no searches yet — ready when Claude needs it"),
 		)
 	} else if s.SuccessSearches == 0 {
+		hint := "← memory building"
+		if s.MemSessions > 0 {
+			hint = "← no matches yet"
+		}
 		memLine2 = fmt.Sprintf("  %s   %s   %s",
 			styleDim.Render("            "),
 			styleWarn.Render(fmt.Sprintf("0 of %d searches found results", s.TotalSearches)),
-			styleDim.Render("← memory building"),
+			styleDim.Render(hint),
 		)
 	} else {
 		pct := int(float64(s.SuccessSearches) / float64(s.TotalSearches) * 100)

@@ -2,7 +2,10 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
+	"math"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -342,5 +345,202 @@ func TestLoadStats_NonExistentDb(t *testing.T) {
 	if s.TotalSearches != 0 || s.TotalGets != 0 || s.TotalInjects != 0 {
 		t.Errorf("Expected zero counts for non-existent DB, got searches=%d gets=%d injects=%d",
 			s.TotalSearches, s.TotalGets, s.TotalInjects)
+	}
+}
+
+// createTestDBPair creates both a usage.db and memory.db in a temp directory,
+// returning the usage.db path. The memory.db will be found by loadMemoryStats
+// via filepath.Dir(dbPath) + "/memory.db". Uses t.TempDir so cleanup is automatic.
+func createTestDBPair(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	usagePath := filepath.Join(dir, "usage.db")
+	memPath := filepath.Join(dir, "memory.db")
+
+	// Create usage.db with schema
+	udb, err := sql.Open("sqlite", "file:"+usagePath+"?_journal_mode=WAL")
+	if err != nil {
+		t.Fatalf("sql.Open usage: %v", err)
+	}
+	_, err = udb.Exec(`
+		CREATE TABLE usage_events (
+			id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+			timestamp            TEXT    NOT NULL,
+			event_type           TEXT    NOT NULL,
+			project              TEXT,
+			query                TEXT,
+			unit_id              TEXT,
+			result_count         INTEGER,
+			token_estimate       INTEGER,
+			manifest_token_total INTEGER,
+			session_id           TEXT
+		)`)
+	if err != nil {
+		t.Fatalf("CREATE TABLE usage_events: %v", err)
+	}
+	udb.Close()
+
+	// Create memory.db with schema
+	mdb, err := sql.Open("sqlite", "file:"+memPath+"?_journal_mode=WAL")
+	if err != nil {
+		t.Fatalf("sql.Open memory: %v", err)
+	}
+	_, err = mdb.Exec(`
+		CREATE TABLE sessions (
+			id              INTEGER PRIMARY KEY AUTOINCREMENT,
+			session_id      TEXT    NOT NULL UNIQUE,
+			project_dir     TEXT    NOT NULL,
+			git_branch      TEXT,
+			slug            TEXT,
+			model           TEXT,
+			started_at      TEXT,
+			ended_at        TEXT,
+			turn_count      INTEGER DEFAULT 0,
+			tool_call_count INTEGER DEFAULT 0,
+			tool_names      TEXT,
+			files_json      TEXT,
+			first_message   TEXT,
+			all_user_text   TEXT,
+			scanned_at      TEXT NOT NULL
+		);
+		CREATE TABLE tool_events (
+			id           INTEGER PRIMARY KEY AUTOINCREMENT,
+			event_ts     TEXT    NOT NULL,
+			session_id   TEXT    NOT NULL,
+			project_dir  TEXT    NOT NULL,
+			tool         TEXT    NOT NULL DEFAULT 'Bash',
+			command      TEXT    NOT NULL,
+			manifest_key TEXT,
+			ingested_at  TEXT    NOT NULL,
+			output_preview TEXT,
+			manifest_version TEXT,
+			UNIQUE (event_ts, session_id, command)
+		)`)
+	if err != nil {
+		t.Fatalf("CREATE TABLE memory: %v", err)
+	}
+	mdb.Close()
+
+	return usagePath
+}
+
+func insertToolEvent(t *testing.T, dir string, sessionID, command, manifestKey string, tsOffset int) {
+	t.Helper()
+	memPath := filepath.Join(dir, "memory.db")
+	mdb, err := sql.Open("sqlite", "file:"+memPath+"?_journal_mode=WAL")
+	if err != nil {
+		t.Fatalf("sql.Open memory for insert: %v", err)
+	}
+	defer mdb.Close()
+
+	ts := time.Now().Add(time.Duration(tsOffset) * time.Second).UTC().Format("2006-01-02T15:04:05.000000000Z")
+	_, err = mdb.Exec(`INSERT INTO tool_events (event_ts, session_id, project_dir, tool, command, manifest_key, ingested_at)
+		VALUES (?, ?, '/test', 'Bash', ?, ?, ?)`,
+		ts, sessionID, command, manifestKey, ts)
+	if err != nil {
+		t.Fatalf("INSERT tool_event: %v", err)
+	}
+}
+
+func insertSession(t *testing.T, dir string, sessionID string, turns, toolCalls int) {
+	t.Helper()
+	memPath := filepath.Join(dir, "memory.db")
+	mdb, err := sql.Open("sqlite", "file:"+memPath+"?_journal_mode=WAL")
+	if err != nil {
+		t.Fatalf("sql.Open memory for insert: %v", err)
+	}
+	defer mdb.Close()
+
+	ts := time.Now().UTC().Format("2006-01-02T15:04:05Z")
+	_, err = mdb.Exec(`INSERT INTO sessions (session_id, project_dir, started_at, turn_count, tool_call_count, scanned_at)
+		VALUES (?, '/test', ?, ?, ?, ?)`,
+		sessionID, ts, turns, toolCalls, ts)
+	if err != nil {
+		t.Fatalf("INSERT session: %v", err)
+	}
+}
+
+func TestLoadStats_ManifestCoverage(t *testing.T) {
+	usagePath := createTestDBPair(t)
+	dir := filepath.Dir(usagePath)
+
+	// Insert 10 tool_events: 7 with manifest_key, 3 without
+	for i := 0; i < 7; i++ {
+		insertToolEvent(t, dir, "sess-1", fmt.Sprintf("docker build . #%d", i), "docker", -i)
+	}
+	for i := 0; i < 3; i++ {
+		insertToolEvent(t, dir, "sess-1", fmt.Sprintf("some-unknown-cmd #%d", i), "", -(10+i))
+	}
+
+	s := loadStats(usagePath, 30, "")
+
+	if s.Err != nil {
+		t.Fatalf("loadStats error: %v", s.Err)
+	}
+	if s.TotalBashCalls != 10 {
+		t.Errorf("TotalBashCalls: got %d, want 10", s.TotalBashCalls)
+	}
+	// 7/10 = 0.7
+	expected := 0.7
+	if math.Abs(s.ManifestHitRate-expected) > 0.01 {
+		t.Errorf("ManifestHitRate: got %.3f, want %.3f", s.ManifestHitRate, expected)
+	}
+}
+
+func TestSessionSizeDist(t *testing.T) {
+	usagePath := createTestDBPair(t)
+	dir := filepath.Dir(usagePath)
+
+	// Insert sessions with known turn counts to test bucketing:
+	// 2 turns  -> bucket 0 (1-5)
+	// 5 turns  -> bucket 0 (1-5)
+	// 15 turns -> bucket 1 (6-20)
+	// 35 turns -> bucket 2 (21-50)
+	// 80 turns -> bucket 3 (51-100)
+	// 150 turns -> bucket 4 (100+)
+	insertSession(t, dir, "s1", 2, 1)
+	insertSession(t, dir, "s2", 5, 3)
+	insertSession(t, dir, "s3", 15, 8)
+	insertSession(t, dir, "s4", 35, 20)
+	insertSession(t, dir, "s5", 80, 40)
+	insertSession(t, dir, "s6", 150, 90)
+
+	s := loadStats(usagePath, 30, "")
+
+	if s.Err != nil {
+		t.Fatalf("loadStats error: %v", s.Err)
+	}
+
+	// Bucket 0 (1-5): sessions s1(2), s2(5) = 2
+	if s.SessionSizeDist[0] != 2 {
+		t.Errorf("SessionSizeDist[0] (1-5): got %d, want 2", s.SessionSizeDist[0])
+	}
+	// Bucket 1 (6-20): session s3(15) = 1
+	if s.SessionSizeDist[1] != 1 {
+		t.Errorf("SessionSizeDist[1] (6-20): got %d, want 1", s.SessionSizeDist[1])
+	}
+	// Bucket 2 (21-50): session s4(35) = 1
+	if s.SessionSizeDist[2] != 1 {
+		t.Errorf("SessionSizeDist[2] (21-50): got %d, want 1", s.SessionSizeDist[2])
+	}
+	// Bucket 3 (51-100): session s5(80) = 1
+	if s.SessionSizeDist[3] != 1 {
+		t.Errorf("SessionSizeDist[3] (51-100): got %d, want 1", s.SessionSizeDist[3])
+	}
+	// Bucket 4 (100+): session s6(150) = 1
+	if s.SessionSizeDist[4] != 1 {
+		t.Errorf("SessionSizeDist[4] (100+): got %d, want 1", s.SessionSizeDist[4])
+	}
+
+	// AvgTurns: (2+5+15+35+80+150)/6 = 287/6 = 47.83
+	expectedTurns := 287.0 / 6.0
+	if math.Abs(s.AvgTurns-expectedTurns) > 0.1 {
+		t.Errorf("AvgTurns: got %.2f, want %.2f", s.AvgTurns, expectedTurns)
+	}
+
+	// AvgToolCalls: (1+3+8+20+40+90)/6 = 162/6 = 27.0
+	expectedTools := 162.0 / 6.0
+	if math.Abs(s.AvgToolCalls-expectedTools) > 0.1 {
+		t.Errorf("AvgToolCalls: got %.2f, want %.2f", s.AvgToolCalls, expectedTools)
 	}
 }
