@@ -17,13 +17,13 @@ var (
 	colBar    = lipgloss.Color("#8B5CF6")
 	colAmber  = lipgloss.Color("#F59E0B")
 
-	styleTitle  = lipgloss.NewStyle().Bold(true).Foreground(colWhite)
-	styleValue  = lipgloss.NewStyle().Bold(true).Foreground(colTeal)
-	styleSaved  = lipgloss.NewStyle().Bold(true).Foreground(colGreen)
-	styleLabel  = lipgloss.NewStyle().Foreground(colDim)
-	styleDim    = lipgloss.NewStyle().Foreground(colDim)
-	styleBar    = lipgloss.NewStyle().Foreground(colBar)
-	styleWarn   = lipgloss.NewStyle().Foreground(colAmber)
+	styleTitle = lipgloss.NewStyle().Bold(true).Foreground(colWhite)
+	styleValue = lipgloss.NewStyle().Bold(true).Foreground(colTeal)
+	styleSaved = lipgloss.NewStyle().Bold(true).Foreground(colGreen)
+	styleLabel = lipgloss.NewStyle().Foreground(colDim)
+	styleDim   = lipgloss.NewStyle().Foreground(colDim)
+	styleBar   = lipgloss.NewStyle().Foreground(colBar)
+	styleWarn  = lipgloss.NewStyle().Foreground(colAmber)
 
 	stylePanel = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
@@ -35,6 +35,12 @@ var (
 			BorderForeground(lipgloss.Color("#4C1D95")).
 			Padding(0, 1)
 )
+
+// panel holds a rendered panel's name and content for carousel support.
+type panel struct {
+	name    string
+	content string
+}
 
 // renderBar renders a progress bar of the given width with filled/empty blocks.
 func renderBar(rate float64, width int) string {
@@ -49,11 +55,11 @@ func renderBar(rate float64, width int) string {
 		styleDim.Render(strings.Repeat("░", width-filled))
 }
 
-// renderPanels builds the scrollable section below the overview.
-func renderPanels(m model) string {
+// buildPanels builds all non-empty panels and returns them individually.
+func buildPanels(m model) []panel {
 	innerW := m.width - 6
 	s := m.stats
-	var sections []string
+	var panels []panel
 
 	// ── Guidance Effects ───────────────────────────────────────────────────
 
@@ -76,47 +82,39 @@ func renderPanels(m model) string {
 				styleValue.Render(fmt.Sprintf("%.1f%% after inject", s.HelpFollowupRate*100)),
 			),
 		}
-
 		if len(s.QualityAlerts) > 0 {
-			lines = append(lines, "")
-			lines = append(lines, "  "+styleLabel.Render("Quality alerts:"))
+			lines = append(lines, "", "  "+styleLabel.Render("Quality alerts:"))
 			for _, a := range s.QualityAlerts {
 				sym := styleSaved.Render("  *")
 				if a.Score > 0.2 {
 					sym = styleWarn.Render("  !")
 				}
 				lines = append(lines, fmt.Sprintf("  %s %-12s %s  retry=%d%%  help=%d%%",
-					sym,
-					truncate(a.ManifestKey, 12),
+					sym, truncate(a.ManifestKey, 12),
 					styleDim.Render(fmt.Sprintf("%d calls", a.TotalCalls)),
-					int(a.RetryRate*100),
-					int(a.HelpRate*100),
+					int(a.RetryRate*100), int(a.HelpRate*100),
 				))
 			}
 		}
-
-		sections = append(sections,
-			stylePanel.Width(innerW).Render(" Guidance Effects\n\n"+strings.Join(lines, "\n")),
-			"",
-		)
+		panels = append(panels, panel{
+			name:    "Guidance Effects",
+			content: stylePanel.Width(innerW).Render(" Guidance Effects\n\n" + strings.Join(lines, "\n")),
+		})
 	}
 
 	// ── Session Profile ───────────────────────────────────────────────────
 
 	if s.MemSessions > 0 {
-		// Count sessions in the current period
 		var periodSessions int64
 		for _, c := range s.SessionSizeDist {
 			periodSessions += c
 		}
-
 		if periodSessions > 0 {
 			headerLine := fmt.Sprintf("  %s  %s  %s",
 				styleValue.Render(fmt.Sprintf("%s sessions", fmtNum(periodSessions))),
 				styleDim.Render(fmt.Sprintf("avg %.0f turns", s.AvgTurns)),
 				styleDim.Render(fmt.Sprintf("avg %.0f tool calls", s.AvgToolCalls)),
 			)
-
 			bucketLabels := [5]string{"1-5 turns", "6-20 turns", "21-50 turns", "51-100 turns", "100+ turns"}
 			var maxBucket int64
 			for _, c := range s.SessionSizeDist {
@@ -124,7 +122,6 @@ func renderPanels(m model) string {
 					maxBucket = c
 				}
 			}
-
 			const barW = 20
 			var distLines []string
 			for i, c := range s.SessionSizeDist {
@@ -139,12 +136,11 @@ func renderPanels(m model) string {
 					styleDim.Render(fmt.Sprintf("%s (%d%%)", fmtNum(c), pct)),
 				))
 			}
-
 			lines := append([]string{headerLine, ""}, distLines...)
-			sections = append(sections,
-				stylePanel.Width(innerW).Render(" Session Profile\n\n"+strings.Join(lines, "\n")),
-				"",
-			)
+			panels = append(panels, panel{
+				name:    "Session Profile",
+				content: stylePanel.Width(innerW).Render(" Session Profile\n\n" + strings.Join(lines, "\n")),
+			})
 		}
 	}
 
@@ -163,39 +159,35 @@ func renderPanels(m model) string {
 			filled := int(float64(barCols) * float64(u.Count) / float64(maxCount))
 			bar := styleBar.Render(strings.Repeat("█", filled)) +
 				styleDim.Render(strings.Repeat("░", barCols-filled))
-			name := truncate(u.UnitID, 22)
 			lines = append(lines, fmt.Sprintf("  %-22s  %s  %s",
-				name, bar,
+				truncate(u.UnitID, 22), bar,
 				styleValue.Render(fmt.Sprintf("%d", u.Count)),
 			))
 		}
-		sections = append(sections,
-			stylePanel.Width(innerW).Render(" Commands Guided\n\n"+strings.Join(lines, "\n")),
-			"",
-		)
+		panels = append(panels, panel{
+			name:    "Commands Guided",
+			content: stylePanel.Width(innerW).Render(" Commands Guided\n\n" + strings.Join(lines, "\n")),
+		})
 	}
 
 	// ── Context Health ─────────────────────────────────────────────────────
 
 	if s.TotalInjectSessions > 0 {
-		// Summary line
 		budgetNote := styleSaved.Render("✓ all within budget")
 		if s.SessionsOverBudget > 0 {
 			budgetNote = styleWarn.Render(fmt.Sprintf("! %d over 5k", s.SessionsOverBudget))
 		}
-		summaryLine := fmt.Sprintf("  %s  avg ~%s tok/session  ·  max ~%s  ·  %s",
-			styleDim.Render(fmt.Sprintf("%s sessions", fmtNum(s.TotalInjectSessions))),
-			fmtNum(int64(s.AvgSessionTokens)),
-			fmtNum(s.MaxSessionTokens),
-			budgetNote,
-		)
-
-		lines := []string{summaryLine}
-
+		lines := []string{
+			fmt.Sprintf("  %s  avg ~%s tok/session  ·  max ~%s  ·  %s",
+				styleDim.Render(fmt.Sprintf("%s sessions", fmtNum(s.TotalInjectSessions))),
+				fmtNum(int64(s.AvgSessionTokens)),
+				fmtNum(s.MaxSessionTokens),
+				budgetNote,
+			),
+		}
 		if m.contextHealthTop {
 			if len(s.TopTokenBurners) > 0 {
-				lines = append(lines, "")
-				lines = append(lines, "  "+styleLabel.Render(fmt.Sprintf("Top by token cost (%dd):", m.days)))
+				lines = append(lines, "", "  "+styleLabel.Render(fmt.Sprintf("Top by token cost (%dd):", m.days)))
 				var maxCost int64
 				for _, u := range s.TopTokenBurners {
 					if u.TokenCost > maxCost {
@@ -218,8 +210,7 @@ func renderPanels(m model) string {
 			}
 		} else {
 			if len(s.RecentInjectSessions) > 0 {
-				lines = append(lines, "")
-				lines = append(lines, "  "+styleLabel.Render("Recent sessions (newest first):"))
+				lines = append(lines, "", "  "+styleLabel.Render("Recent sessions (newest first):"))
 				var maxTok int64
 				for _, r := range s.RecentInjectSessions {
 					if r.TotalTokens > maxTok {
@@ -252,11 +243,10 @@ func renderPanels(m model) string {
 				}
 			}
 		}
-
-		sections = append(sections,
-			stylePanel.Width(innerW).Render(" Context Health\n\n"+strings.Join(lines, "\n")),
-			"",
-		)
+		panels = append(panels, panel{
+			name:    "Context Health",
+			content: stylePanel.Width(innerW).Render(" Context Health\n\n" + strings.Join(lines, "\n")),
+		})
 	}
 
 	// ── Memory Searches ────────────────────────────────────────────────────
@@ -266,7 +256,6 @@ func renderPanels(m model) string {
 		for _, r := range s.RecentSearches {
 			ts := ""
 			if len(r.Timestamp) >= 19 {
-				// "2026-03-27T20:51:24..." → "20:51"
 				ts = r.Timestamp[11:16]
 			}
 			q := truncate(r.Query, 40)
@@ -284,13 +273,29 @@ func renderPanels(m model) string {
 				resultStr,
 			))
 		}
-		sections = append(sections,
-			stylePanel.Width(innerW).Render(" Memory Searches\n\n"+strings.Join(lines, "\n")),
-			"",
-		)
+		panels = append(panels, panel{
+			name:    "Memory Searches",
+			content: stylePanel.Width(innerW).Render(" Memory Searches\n\n" + strings.Join(lines, "\n")),
+		})
 	}
 
-	return strings.Join(sections, "\n")
+	return panels
+}
+
+// renderPanels returns viewport content: single panel in carousel mode, all panels otherwise.
+func renderPanels(m model) string {
+	panels := buildPanels(m)
+	if len(panels) == 0 {
+		return ""
+	}
+	if m.carouselMode {
+		return panels[m.carouselIndex%len(panels)].content
+	}
+	parts := make([]string, len(panels))
+	for i, p := range panels {
+		parts[i] = p.content
+	}
+	return strings.Join(parts, "\n\n")
 }
 
 func (m model) View() string {
@@ -316,7 +321,6 @@ func (m model) View() string {
 
 	s := m.stats
 
-	// kcp-commands row
 	cmdLine1 := fmt.Sprintf("  %s   %s %s",
 		styleLabel.Render("kcp-commands"),
 		styleValue.Render(fmtNum(s.TotalInjects)),
@@ -352,7 +356,6 @@ func (m model) View() string {
 		)
 	}
 
-	// kcp-memory row
 	var memLine1, memLine2 string
 	if s.MemSessions > 0 {
 		memLine1 = fmt.Sprintf("  %s   %s %s",
@@ -393,13 +396,11 @@ func (m model) View() string {
 		)
 	}
 
-	// Projects row
 	ovLines := []string{cmdLine1}
 	if cmdLine2 != "" {
 		ovLines = append(ovLines, cmdLine2)
 	}
 	ovLines = append(ovLines, memLine1, memLine2)
-
 	if len(s.Projects) > 0 {
 		proj := strings.Join(s.Projects, ", ")
 		if len(proj) > 60 {
@@ -410,8 +411,29 @@ func (m model) View() string {
 			styleDim.Render(proj),
 		))
 	}
-
 	overview := stylePanel.Width(innerW).Render(" Overview\n\n" + strings.Join(ovLines, "\n"))
+
+	// ── Carousel indicator (pinned, focus mode only) ──────────────────────
+
+	carouselBar := ""
+	if m.carouselMode {
+		panels := buildPanels(m)
+		n := len(panels)
+		if n > 0 {
+			idx := m.carouselIndex % n
+			var dots []string
+			for i := range panels {
+				if i == idx {
+					dots = append(dots, styleValue.Render("●"))
+				} else {
+					dots = append(dots, styleDim.Render("○"))
+				}
+			}
+			carouselBar = "  " + strings.Join(dots, " ") + "  " +
+				styleLabel.Render(panels[idx].name) +
+				styleDim.Render(fmt.Sprintf("  [%d/%d]", idx+1, n))
+		}
+	}
 
 	// ── Status bar (pinned) ───────────────────────────────────────────────
 
@@ -428,22 +450,26 @@ func (m model) View() string {
 	if m.vp.TotalLineCount() > m.vp.VisibleLineCount() {
 		scrollPct = fmt.Sprintf(" · %.0f%%", m.vp.ScrollPercent()*100)
 	}
-	status := styleDim.Render(fmt.Sprintf(
-		"q quit · d cycle days · r refresh · t context · ↑↓ scroll%s · updated %s", scrollPct, ago,
-	))
+	var status string
+	if m.carouselMode {
+		status = styleDim.Render(fmt.Sprintf(
+			"q quit · f exit focus · space/←→ navigate · ↑↓ scroll%s · updated %s", scrollPct, ago,
+		))
+	} else {
+		status = styleDim.Render(fmt.Sprintf(
+			"q quit · d days · r refresh · f focus · t context · ↑↓ scroll%s · updated %s", scrollPct, ago,
+		))
+	}
 
 	// ── Compose ───────────────────────────────────────────────────────────
 
-	body := strings.Join([]string{
-		header,
-		"",
-		overview,
-		"",
-		m.vp.View(),
-		status,
-	}, "\n")
+	bodyParts := []string{header, "", overview, ""}
+	if carouselBar != "" {
+		bodyParts = append(bodyParts, carouselBar, "")
+	}
+	bodyParts = append(bodyParts, m.vp.View(), status)
 
-	return styleOuter.Width(m.width - 2).Render(body)
+	return styleOuter.Width(m.width - 2).Render(strings.Join(bodyParts, "\n"))
 }
 
 func plural(n int) string {
@@ -471,15 +497,13 @@ func truncate(s string, max int) string {
 	return s[:max-1] + "…"
 }
 
-// fmtSessionTime formats a UTC timestamp string from the DB into a human-friendly label.
-// "today HH:MM", "yesterday HH:MM", or "MMM DD HH:MM".
+// fmtSessionTime formats a UTC timestamp string into a human-friendly label.
 func fmtSessionTime(ts string) string {
 	if len(ts) < 16 {
 		return ts
 	}
 	t, err := time.Parse("2006-01-02T15:04:05Z", ts)
 	if err != nil {
-		// Try without seconds
 		t, err = time.Parse("2006-01-02T15:04Z", ts[:16]+"Z")
 		if err != nil {
 			return ts[:16]

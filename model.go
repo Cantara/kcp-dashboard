@@ -8,6 +8,7 @@ import (
 )
 
 const refreshInterval = 2 * time.Second
+const carouselInterval = 6 * time.Second
 
 // Fixed UI chrome heights (lines):
 //
@@ -17,11 +18,13 @@ const refreshInterval = 2 * time.Second
 //	blank:        1
 //	status bar:   1
 //	outer border: 2
-const fixedHeight = 17 // header(1) + blank(1) + overview border+padding+5lines(9) + blank(1) + status(1) + outer border(2) + extra(2)
+const fixedHeight = 17
+const carouselExtraHeight = 2 // carousel indicator line + blank
 
 var dayOptions = []int{1, 7, 30, 90, 365}
 
 type tickMsg time.Time
+type carouselTickMsg time.Time
 
 type model struct {
 	dbPath           string
@@ -36,6 +39,8 @@ type model struct {
 	vp               viewport.Model
 	vpReady          bool
 	contextHealthTop bool // false = recent sessions, true = top token burners
+	carouselMode     bool
+	carouselIndex    int
 }
 
 func newModel(dbPath string, days int, project string) model {
@@ -74,6 +79,24 @@ func tickCmd() tea.Cmd {
 	})
 }
 
+func carouselTickCmd() tea.Cmd {
+	return tea.Tick(carouselInterval, func(t time.Time) tea.Msg {
+		return carouselTickMsg(t)
+	})
+}
+
+func calcVpHeight(m model) int {
+	extra := 0
+	if m.carouselMode {
+		extra = carouselExtraHeight
+	}
+	h := m.height - fixedHeight - extra
+	if h < 3 {
+		h = 3
+	}
+	return h
+}
+
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var (
 		cmd  tea.Cmd
@@ -85,16 +108,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		vpHeight := msg.Height - fixedHeight
-		if vpHeight < 3 {
-			vpHeight = 3
-		}
+		h := calcVpHeight(m)
 		if !m.vpReady {
-			m.vp = viewport.New(msg.Width-6, vpHeight)
+			m.vp = viewport.New(msg.Width-6, h)
 			m.vpReady = true
 		} else {
 			m.vp.Width = msg.Width - 6
-			m.vp.Height = vpHeight
+			m.vp.Height = h
 		}
 		m.vp.SetContent(renderPanels(m))
 
@@ -102,20 +122,61 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "q", "Q", "ctrl+c":
 			return m, tea.Quit
-		case "d", "D":
-			m.dayIndex = (m.dayIndex + 1) % len(dayOptions)
-			m.days = dayOptions[m.dayIndex]
-			m.loading = true
-			return m, fetchCmd(m.dbPath, m.days, m.project)
-		case "r", "R":
-			m.loading = true
-			return m, fetchCmd(m.dbPath, m.days, m.project)
-		case "t", "T":
-			m.contextHealthTop = !m.contextHealthTop
+
+		case "f", "F":
+			m.carouselMode = !m.carouselMode
+			m.carouselIndex = 0
 			if m.vpReady {
+				m.vp.Height = calcVpHeight(m)
 				m.vp.SetContent(renderPanels(m))
 			}
+			if m.carouselMode {
+				return m, carouselTickCmd()
+			}
 			return m, nil
+
+		case " ", "right":
+			if m.carouselMode {
+				if panels := buildPanels(m); len(panels) > 0 {
+					m.carouselIndex = (m.carouselIndex + 1) % len(panels)
+				}
+				if m.vpReady {
+					m.vp.SetContent(renderPanels(m))
+				}
+				return m, nil
+			}
+
+		case "left":
+			if m.carouselMode {
+				if panels := buildPanels(m); len(panels) > 0 {
+					m.carouselIndex = (m.carouselIndex - 1 + len(panels)) % len(panels)
+				}
+				if m.vpReady {
+					m.vp.SetContent(renderPanels(m))
+				}
+				return m, nil
+			}
+
+		case "d", "D":
+			if !m.carouselMode {
+				m.dayIndex = (m.dayIndex + 1) % len(dayOptions)
+				m.days = dayOptions[m.dayIndex]
+				m.loading = true
+				return m, fetchCmd(m.dbPath, m.days, m.project)
+			}
+		case "r", "R":
+			if !m.carouselMode {
+				m.loading = true
+				return m, fetchCmd(m.dbPath, m.days, m.project)
+			}
+		case "t", "T":
+			if !m.carouselMode {
+				m.contextHealthTop = !m.contextHealthTop
+				if m.vpReady {
+					m.vp.SetContent(renderPanels(m))
+				}
+				return m, nil
+			}
 		}
 
 	case Stats:
@@ -131,6 +192,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			fetchCmd(m.dbPath, m.days, m.project),
 			tickCmd(),
 		))
+
+	case carouselTickMsg:
+		if m.carouselMode {
+			if panels := buildPanels(m); len(panels) > 0 {
+				m.carouselIndex = (m.carouselIndex + 1) % len(panels)
+			}
+			if m.vpReady {
+				m.vp.SetContent(renderPanels(m))
+			}
+			cmds = append(cmds, carouselTickCmd())
+		}
 	}
 
 	// Forward keypresses to viewport (↑↓ PgUp PgDn scroll)
