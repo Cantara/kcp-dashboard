@@ -238,6 +238,11 @@ func (m model) View() string {
 		styleValue.Render(fmtNum(s.TotalInjects)),
 		styleDim.Render("commands guided"),
 	)
+	if s.TotalFilters > 0 {
+		cmdLine1 += styleDim.Render("  ·  ") +
+			styleValue.Render(fmtNum(s.TotalFilters)) +
+			styleDim.Render(" outputs filtered")
+	}
 	if s.UniqueTools > 0 {
 		cmdLine1 += styleDim.Render(fmt.Sprintf("   %d unique tools", s.UniqueTools))
 	}

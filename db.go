@@ -13,6 +13,7 @@ import (
 type Stats struct {
 	// kcp-commands
 	TotalInjects      int64
+	TotalFilters      int64  // suppressed commands with Phase B output filtering
 	UniqueTools       int64
 	InjectTokens      int64 // SUM(token_estimate) for inject events — context delivered
 	ManifestCount     int64 // count of *.yaml in ~/.kcp/commands/
@@ -93,9 +94,10 @@ func loadStats(dbPath string, days int, project string) Stats {
 	row := db.QueryRow(
 		`SELECT COUNT(CASE WHEN event_type='search'   THEN 1 END),
 		        COUNT(CASE WHEN event_type='get_unit' THEN 1 END),
-		        COUNT(CASE WHEN event_type='inject'   THEN 1 END)
+		        COUNT(CASE WHEN event_type='inject'   THEN 1 END),
+		        COUNT(CASE WHEN event_type='filter'   THEN 1 END)
 		   FROM usage_events WHERE timestamp >= ?`+projectClause, base...)
-	row.Scan(&s.TotalSearches, &s.TotalGets, &s.TotalInjects)
+	row.Scan(&s.TotalSearches, &s.TotalGets, &s.TotalInjects, &s.TotalFilters)
 
 	// ── kcp-commands: context delivered ──────────────────────────────────────
 
@@ -151,7 +153,7 @@ func loadStats(dbPath string, days int, project string) Stats {
 	rows1, err := db.Query(
 		`SELECT unit_id, COUNT(*) cnt, COALESCE(SUM(token_estimate), 0)
 		   FROM usage_events
-		  WHERE event_type='inject' AND unit_id IS NOT NULL
+		  WHERE event_type IN ('inject', 'filter') AND unit_id IS NOT NULL
 		    AND timestamp >= ?`+projectClause+`
 		  GROUP BY unit_id ORDER BY cnt DESC LIMIT 10`, base...)
 	if err == nil {
