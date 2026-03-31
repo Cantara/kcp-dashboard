@@ -97,6 +97,10 @@ Both databases must exist for the dashboard to show all panels. The dashboard op
 | v0.5.1 | Patch: fixed "memory building" state message when sessions exist but no searches match. |
 | v0.6.0 | Added Guidance Effects panel (manifest coverage bar, filtered retry rate, help-followup rate, quality alerts). Added Session Profile panel (session size histogram + averages). Removed empty Top Units panel. Data sourced from memory.db tool_events. |
 | v0.22.0 | README rewrite — accurate panel descriptions, removed stale kcp-mcp bridge references. Version aligned with kcp-commands v0.22.0 and kcp-memory v0.22.0. |
+| v0.23.0 | Filter event counts in dashboard panels. |
+| v0.24.0 | Context Health panel with recent/top toggle. |
+| v0.25.0 | Focus/carousel mode for small terminals. |
+| v0.26.0 | Ecosystem alignment. Coordinated release with kcp-commands v0.26.0 and kcp-memory v0.26.0. |
 
 ## Part of the KCP ecosystem
 
