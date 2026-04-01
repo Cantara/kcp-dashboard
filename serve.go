@@ -96,7 +96,7 @@ func (u *usageWriter) writeFilter(unitID, project string) {
 
 // ── Serve command ─────────────────────────────────────────────────────────────
 
-func runServe() {
+func runServe(port int) {
 	kcpDir := filepath.Join(os.Getenv("HOME"), ".kcp")
 	manifestDir := filepath.Join(kcpDir, "commands")
 
@@ -107,6 +107,9 @@ func runServe() {
 		store = &ManifestStore{byKey: make(map[string]*Manifest)}
 	} else {
 		log.Printf("[kcp-hook] loaded %d manifests from %s", store.Size(), manifestDir)
+		if store.Size() < 200 {
+			log.Printf("[kcp-hook] warning: only %d manifests found — re-run bin/install.sh to sync all 291", store.Size())
+		}
 	}
 
 	dbPath := filepath.Join(kcpDir, "usage.db")
@@ -125,13 +128,13 @@ func runServe() {
 		fmt.Fprintf(w, `{"version":%q,"backend":"go"}`, version)
 	})
 	mux.HandleFunc("/hook", func(w http.ResponseWriter, r *http.Request) {
-		handleHook(w, r, store, usage)
+		handleHook(w, r, store, usage, port)
 	})
 	mux.HandleFunc("/filter/", func(w http.ResponseWriter, r *http.Request) {
 		handleFilter(w, r, store, usage)
 	})
 
-	addr := fmt.Sprintf("localhost:%d", hookPort)
+	addr := fmt.Sprintf("localhost:%d", port)
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
 		log.Fatalf("[kcp-hook] cannot bind to %s — is another kcp daemon already running? (%v)", addr, err)
@@ -151,7 +154,7 @@ func runServe() {
 
 // ── /hook handler (Phase A + Phase B wrapping) ────────────────────────────────
 
-func handleHook(w http.ResponseWriter, r *http.Request, store *ManifestStore, usage *usageWriter) {
+func handleHook(w http.ResponseWriter, r *http.Request, store *ManifestStore, usage *usageWriter, port int) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -208,7 +211,7 @@ func handleHook(w http.ResponseWriter, r *http.Request, store *ManifestStore, us
 		out.UpdatedInput = map[string]string{
 			"command": fmt.Sprintf(
 				`%s | curl -s -X POST "http://localhost:%d/filter/%s" --data-binary @-`,
-				command, hookPort, key,
+				command, port, key,
 			),
 		}
 	}
