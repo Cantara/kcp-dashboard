@@ -16,7 +16,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.24'
+          go-version: '1.25'
 
       - name: Build binaries
         run: |
@@ -34,25 +34,23 @@ jobs:
           body: |
             ## Installation
 
-            **macOS (Apple Silicon)**
             ```bash
-            curl -fsSL https://github.com/Cantara/kcp-dashboard/releases/latest/download/kcp-dashboard-darwin-arm64 -o ~/.local/bin/kcp-dashboard
-            chmod +x ~/.local/bin/kcp-dashboard
+            curl -fsSL https://raw.githubusercontent.com/Cantara/kcp-dashboard/main/bin/install.sh | bash
             ```
 
-            **macOS (Intel)**
+            Auto-detects OS and architecture. Installs to `~/.local/bin/kcp-dashboard`.
+
+            ## Usage
+
             ```bash
-            curl -fsSL https://github.com/Cantara/kcp-dashboard/releases/latest/download/kcp-dashboard-darwin-amd64 -o ~/.local/bin/kcp-dashboard
-            chmod +x ~/.local/bin/kcp-dashboard
+            kcp-dashboard          # live TUI — stats, session history, manifest quality
+            kcp-dashboard serve    # hook daemon — drop-in replacement for kcp-commands Java daemon
             ```
 
-            **Linux**
-            ```bash
-            curl -fsSL https://github.com/Cantara/kcp-dashboard/releases/latest/download/kcp-dashboard-linux-amd64 -o ~/.local/bin/kcp-dashboard
-            chmod +x ~/.local/bin/kcp-dashboard
-            ```
+            `kcp-dashboard serve` listens on port 7734 (same as kcp-commands), reads manifests
+            from `~/.kcp/commands/`, and requires no JVM.
 
-            Requires `~/.kcp/usage.db` — populated by [kcp-mcp bridge](https://github.com/Cantara/knowledge-context-protocol) v0.14.3+.
+            Requires `~/.kcp/usage.db` — populated by kcp-commands v0.20.0+ or `kcp-dashboard serve`.
           files: |
             dist/kcp-dashboard-linux-amd64
             dist/kcp-dashboard-linux-arm64
