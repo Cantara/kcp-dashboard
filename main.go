@@ -12,6 +12,12 @@ import (
 const version = "0.26.0"
 
 func main() {
+	// kcp-dashboard serve — start hook daemon (no TUI)
+	if len(os.Args) >= 2 && os.Args[1] == "serve" {
+		runServe()
+		return
+	}
+
 	days    := flag.Int("days", 30, "Days to include (1, 7, 30, 90, 365)")
 	project := flag.String("project", "", "Filter by project name")
 	flag.Parse()
