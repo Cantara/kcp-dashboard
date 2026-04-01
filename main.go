@@ -9,12 +9,15 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-const version = "0.26.0"
+const version = "0.27.0"
 
 func main() {
-	// kcp-dashboard serve — start hook daemon (no TUI)
+	// kcp-dashboard serve [-port N] — start hook daemon (no TUI)
 	if len(os.Args) >= 2 && os.Args[1] == "serve" {
-		runServe()
+		serveFlags := flag.NewFlagSet("serve", flag.ExitOnError)
+		port := serveFlags.Int("port", hookPort, "Port to listen on")
+		serveFlags.Parse(os.Args[2:])
+		runServe(*port)
 		return
 	}
 
