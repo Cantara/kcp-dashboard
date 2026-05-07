@@ -1,0 +1,38 @@
+# kcp-dashboard
+
+> Live terminal dashboard for KCP (Knowledge Context Protocol) usage statistics.
+> Built with Bubble Tea + Lip Gloss. Auto-refreshes every 2 seconds.
+
+Shows token savings, guidance quality, session profiles, filtered retry rates,
+and per-command bar charts across the KCP toolchain. The observability layer
+for kcp-commands + kcp-memory in one TUI.
+
+Part of the [KCP ecosystem](https://github.com/Cantara/knowledge-context-protocol).
+Apache-2.0. Go.
+
+## Structured Navigation (for AI agents)
+
+This repository ships a KCP v0.14 manifest:
+https://raw.githubusercontent.com/Cantara/kcp-dashboard/main/knowledge.yaml
+
+Signing key (delegated to Cantara org): https://wiki.cantara.no/.well-known/kcp-signing-key.pub
+
+## Panels
+
+- **Overview** — kcp-commands stats, kcp-memory stats, active projects
+- **Guidance Effects** — manifest coverage bar chart, filtered retry rate, help-followup rate, quality alerts
+- **Session Profile** — session count, avg turns, size histogram
+- **Commands Guided** — top 10 most-guided commands with inject counts
+
+## Install
+
+```bash
+go install github.com/Cantara/kcp-dashboard@latest
+kcp-dashboard
+```
+
+## Related
+
+- [kcp-commands](https://github.com/Cantara/kcp-commands) — the hook that generates the data
+- [kcp-memory](https://github.com/Cantara/kcp-memory) — episodic memory hub
+- [knowledge-context-protocol](https://github.com/Cantara/knowledge-context-protocol) — KCP spec
