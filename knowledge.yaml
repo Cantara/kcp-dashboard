@@ -69,6 +69,12 @@ units:
     depends_on: [readme]
     triggers: [db, database, sqlite, metrics, read, query, storage]
 
+manifests:
+  - url: https://cantara.github.io/knowledge-context-protocol/knowledge.yaml
+    relationship: foundation
+  - url: https://wiki.cantara.no/knowledge/projects/kcp.yaml
+    relationship: org-context
+
 relationships:
   - from: readme
     to: main
