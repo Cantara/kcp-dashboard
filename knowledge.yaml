@@ -42,9 +42,9 @@ units:
     audience: [human, agent, developer]
     validated: "2026-05-07"
     triggers: [kcp-dashboard, dashboard, tui, terminal, panels, overview, guidance effects, session profile, commands guided, install, bubble tea, lip gloss, auto-refresh]
-      content_hash:
-        algorithm: sha256
-        value: ""
+    content_hash:
+      algorithm: sha256
+      value: ""
 
   - id: main
     path: main.go
@@ -54,9 +54,9 @@ units:
     validated: "2026-05-07"
     depends_on: [readme]
     triggers: [main, entry point, start, launch]
-      content_hash:
-        algorithm: sha256
-        value: ""
+    content_hash:
+      algorithm: sha256
+      value: ""
 
   - id: view
     path: view.go
@@ -66,9 +66,9 @@ units:
     validated: "2026-05-07"
     depends_on: [readme]
     triggers: [view, render, panels, tui, bubble tea, layout, lip gloss]
-      content_hash:
-        algorithm: sha256
-        value: ""
+    content_hash:
+      algorithm: sha256
+      value: ""
 
   - id: db
     path: db.go
@@ -78,9 +78,9 @@ units:
     validated: "2026-05-07"
     depends_on: [readme]
     triggers: [db, database, sqlite, metrics, read, query, storage]
-      content_hash:
-        algorithm: sha256
-        value: ""
+    content_hash:
+      algorithm: sha256
+      value: ""
 
 manifests:
   - url: https://cantara.github.io/knowledge-context-protocol/knowledge.yaml
