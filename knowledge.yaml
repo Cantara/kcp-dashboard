@@ -6,8 +6,8 @@ entity:
   description: >
     Live terminal dashboard for KCP usage statistics. Built with Bubble Tea +
     Lip Gloss. Auto-refreshes every 2 seconds. Shows token savings, guidance
-    quality, session profiles, and per-command bar charts — all the KCP toolchain
-    observability you need in one TUI.
+    quality, session profiles, and per-command bar charts — all the KCP
+    toolchain observability you need in one TUI.
 
 authority:
   owner: Cantara — Norwegian Software Development Foundation
@@ -23,7 +23,8 @@ signing:
   scheme: ed25519
   scope: this-manifest
   public_key: "MCowBQYDK2VwAyEAuipgusnqU9vjf3p2yPVLD/DmERT6tBbLOqEETdxAhMU="
-  signature: "https://raw.githubusercontent.com/Cantara/kcp-dashboard/main/knowledge.yaml.sig"
+  signature: "https://raw.githubusercontent.com/Cantara/kcp-dashboard/main/knowle\
+    dge.yaml.sig"
 
 kcp_version: "0.21"
 project: kcp-dashboard
@@ -37,50 +38,67 @@ units:
 
   - id: readme
     path: README.md
-    intent: "What is kcp-dashboard, what panels does it show, and how do I install and run it?"
+    intent: "What is kcp-dashboard, what panels does it show, and how do I install
+      and run it?"
     scope: global
-    audience: [human, agent, developer]
+    audience: [ human, agent, developer ]
     validated: "2026-05-07"
-    triggers: [kcp-dashboard, dashboard, tui, terminal, panels, overview, guidance effects, session profile, commands guided, install, bubble tea, lip gloss, auto-refresh]
+    triggers:
+      [
+        kcp-dashboard,
+        dashboard,
+        tui,
+        terminal,
+        panels,
+        overview,
+        guidance effects,
+        session profile,
+        commands guided,
+        install,
+        bubble tea,
+        lip gloss,
+        auto-refresh
+      ]
     content_hash:
       algorithm: sha256
-      value: ""
+      value: "3f76f4ec2c757175af1a56e382b65402e655ab21ef4b171af158ccd0149974c1"
 
   - id: main
     path: main.go
-    intent: "Where is the kcp-dashboard entry point and how does the application start?"
+    intent: "Where is the kcp-dashboard entry point and how does the application
+      start?"
     scope: module
-    audience: [developer]
+    audience: [ developer ]
     validated: "2026-05-07"
-    depends_on: [readme]
-    triggers: [main, entry point, start, launch]
+    depends_on: [ readme ]
+    triggers: [ main, entry point, start, launch ]
     content_hash:
       algorithm: sha256
-      value: ""
+      value: "aa6ea595691756d11f238e57e29d48b24a60dc8db7d3ebbf173f08cf9f8a374c"
 
   - id: view
     path: view.go
     intent: "How are the dashboard panels rendered? Where is the TUI view logic?"
     scope: module
-    audience: [developer]
+    audience: [ developer ]
     validated: "2026-05-07"
-    depends_on: [readme]
-    triggers: [view, render, panels, tui, bubble tea, layout, lip gloss]
+    depends_on: [ readme ]
+    triggers: [ view, render, panels, tui, bubble tea, layout, lip gloss ]
     content_hash:
       algorithm: sha256
-      value: ""
+      value: "c6d1026e3ab669fb660189adc316f642d33f1f90c09a5258da615148c361b2d5"
 
   - id: db
     path: db.go
     intent: "How does kcp-dashboard read KCP metrics from the local SQLite database?"
     scope: module
-    audience: [developer]
+    audience: [ developer ]
     validated: "2026-05-07"
-    depends_on: [readme]
-    triggers: [db, database, sqlite, metrics, read, query, storage]
+    depends_on: [ readme ]
+    triggers: [ db, database, sqlite, metrics, read, query, storage ]
     content_hash:
       algorithm: sha256
-      value: ""
+      value: "5dbfd01e2a19b9dd87b2ba7b737e56756b485e5610a45948531652bfca75c310"
 
 manifests:
   - url: https://cantara.github.io/knowledge-context-protocol/knowledge.yaml
