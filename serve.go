@@ -66,6 +66,10 @@ func newUsageWriter(dbPath string) (*usageWriter, error) {
 		db.Close()
 		return nil, err
 	}
+	if err := createTraceTables(db); err != nil {
+		db.Close()
+		return nil, err
+	}
 	return &usageWriter{db: db}, nil
 }
 
@@ -132,6 +136,9 @@ func runServe(port int) {
 	})
 	mux.HandleFunc("/filter/", func(w http.ResponseWriter, r *http.Request) {
 		handleFilter(w, r, store, usage)
+	})
+	mux.HandleFunc("/trace", func(w http.ResponseWriter, r *http.Request) {
+		handleTrace(w, r, usage)
 	})
 
 	addr := fmt.Sprintf("localhost:%d", port)
