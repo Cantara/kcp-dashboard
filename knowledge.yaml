@@ -26,7 +26,7 @@ signing:
   signature: "https://raw.githubusercontent.com/Cantara/kcp-dashboard/main/knowle\
     dge.yaml.sig"
 
-kcp_version: "0.25"
+kcp_version: "0.26"
 project: kcp-dashboard
 language: en
 license: "Apache-2.0"
@@ -116,3 +116,11 @@ relationships:
   - from: main
     to: db
     type: enables
+
+# Serving Endpoint Binding (KCP SPEC v0.26 §3.12): authoritative manifest URL
+# and authorized MCP representative. Ignored by pre-0.26 verifiers.
+serving:
+  manifest:
+    - https://raw.githubusercontent.com/Cantara/kcp-dashboard/main/knowledge.yaml
+  mcp:
+    - https://mcp.cantara.no/mcp
