@@ -41,6 +41,21 @@ type model struct {
 	contextHealthTop bool // false = recent sessions, true = top token burners
 	carouselMode     bool
 	carouselIndex    int
+
+	// Session drill-down (thought-graph action layer).
+	sessionMode bool
+	sessions    []SessionRow
+	sessionSel  int
+	steps       []SessionStep
+}
+
+// viewportContent returns what the scrollable viewport should show for the
+// current mode: the session browser when drilling in, otherwise the panels.
+func (m model) viewportContent() string {
+	if m.sessionMode {
+		return renderSessionBrowser(m)
+	}
+	return renderPanels(m)
 }
 
 func newModel(dbPath string, days int, project string) model {
@@ -116,7 +131,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.vp.Width = msg.Width - 6
 			m.vp.Height = h
 		}
-		m.vp.SetContent(renderPanels(m))
+		m.vp.SetContent(m.viewportContent())
 
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -128,7 +143,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.carouselIndex = 0
 			if m.vpReady {
 				m.vp.Height = calcVpHeight(m)
-				m.vp.SetContent(renderPanels(m))
+				m.vp.SetContent(m.viewportContent())
 			}
 			if m.carouselMode {
 				return m, carouselTickCmd()
@@ -141,7 +156,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.carouselIndex = (m.carouselIndex + 1) % len(panels)
 				}
 				if m.vpReady {
-					m.vp.SetContent(renderPanels(m))
+					m.vp.SetContent(m.viewportContent())
 				}
 				return m, nil
 			}
@@ -152,7 +167,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.carouselIndex = (m.carouselIndex - 1 + len(panels)) % len(panels)
 				}
 				if m.vpReady {
-					m.vp.SetContent(renderPanels(m))
+					m.vp.SetContent(m.viewportContent())
 				}
 				return m, nil
 			}
@@ -170,10 +185,53 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, fetchCmd(m.dbPath, m.days, m.project)
 			}
 		case "t", "T":
-			if !m.carouselMode {
+			if !m.carouselMode && !m.sessionMode {
 				m.contextHealthTop = !m.contextHealthTop
 				if m.vpReady {
-					m.vp.SetContent(renderPanels(m))
+					m.vp.SetContent(m.viewportContent())
+				}
+				return m, nil
+			}
+
+		case "s", "S":
+			if !m.carouselMode {
+				m.sessionMode = !m.sessionMode
+				if m.sessionMode {
+					m.sessions, _ = loadRecentSessions(m.dbPath, m.days, m.project, 50)
+					m.sessionSel = 0
+					m.steps = loadStepsFor(m.dbPath, m.sessions, m.sessionSel)
+				}
+				if m.vpReady {
+					m.vp.SetContent(m.viewportContent())
+				}
+				return m, nil
+			}
+
+		case "esc":
+			if m.sessionMode {
+				m.sessionMode = false
+				if m.vpReady {
+					m.vp.SetContent(m.viewportContent())
+				}
+				return m, nil
+			}
+
+		case "j":
+			if m.sessionMode {
+				m.sessionSel = clampIndex(m.sessionSel+1, len(m.sessions))
+				m.steps = loadStepsFor(m.dbPath, m.sessions, m.sessionSel)
+				if m.vpReady {
+					m.vp.SetContent(m.viewportContent())
+				}
+				return m, nil
+			}
+
+		case "k":
+			if m.sessionMode {
+				m.sessionSel = clampIndex(m.sessionSel-1, len(m.sessions))
+				m.steps = loadStepsFor(m.dbPath, m.sessions, m.sessionSel)
+				if m.vpReady {
+					m.vp.SetContent(m.viewportContent())
 				}
 				return m, nil
 			}
@@ -184,7 +242,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.lastUpdate = time.Now()
 		m.loading = false
 		if m.vpReady {
-			m.vp.SetContent(renderPanels(m))
+			m.vp.SetContent(m.viewportContent())
 		}
 
 	case tickMsg:
@@ -199,7 +257,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.carouselIndex = (m.carouselIndex + 1) % len(panels)
 			}
 			if m.vpReady {
-				m.vp.SetContent(renderPanels(m))
+				m.vp.SetContent(m.viewportContent())
 			}
 			cmds = append(cmds, carouselTickCmd())
 		}
