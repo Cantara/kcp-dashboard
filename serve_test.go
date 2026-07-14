@@ -25,7 +25,7 @@ func postHook(t *testing.T, store *ManifestStore, body string) *httptest.Respons
 	req := httptest.NewRequest(http.MethodPost, "/hook", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
-	handleHook(rr, req, store, nil) // nil usage writer — no DB needed in tests
+	handleHook(rr, req, store, nil, hookPort) // nil usage writer — no DB needed in tests
 	return rr
 }
 
@@ -126,7 +126,7 @@ func TestHandleHook_InvalidJSON_Returns400(t *testing.T) {
 	store := loadTestStore(t)
 	req := httptest.NewRequest(http.MethodPost, "/hook", strings.NewReader("not json"))
 	rr := httptest.NewRecorder()
-	handleHook(rr, req, store, nil)
+	handleHook(rr, req, store, nil, hookPort)
 	if rr.Code != http.StatusBadRequest {
 		t.Errorf("expected 400, got %d", rr.Code)
 	}
@@ -136,7 +136,7 @@ func TestHandleHook_WrongMethod_Returns405(t *testing.T) {
 	store := loadTestStore(t)
 	req := httptest.NewRequest(http.MethodGet, "/hook", nil)
 	rr := httptest.NewRecorder()
-	handleHook(rr, req, store, nil)
+	handleHook(rr, req, store, nil, hookPort)
 	if rr.Code != http.StatusMethodNotAllowed {
 		t.Errorf("expected 405, got %d", rr.Code)
 	}
