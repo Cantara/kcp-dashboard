@@ -34,6 +34,76 @@ func loadStepsFor(dbPath string, sessions []SessionRow, sel int) []SessionStep {
 	return steps
 }
 
+// loadTracesFor loads the decision traces for the selected session (empty if none).
+func loadTracesFor(dbPath string, sessions []SessionRow, sel int) []DecisionTraceRow {
+	if sel < 0 || sel >= len(sessions) {
+		return nil
+	}
+	traces, _ := loadSessionTraces(dbPath, sessions[sel].SessionID)
+	return traces
+}
+
+// renderGateFunnel renders the 13-gate cascade for one trace: a bar per gate
+// showing how many candidate units it passed vs. total — where units drop out.
+func renderGateFunnel(gates []GateStat, width int) string {
+	if len(gates) == 0 {
+		return styleDim.Render("    (no gate summary)")
+	}
+	barW := width - 26
+	if barW < 6 {
+		barW = 6
+	}
+	var b strings.Builder
+	for _, g := range gates {
+		total := g.Passed + g.Failed
+		rate := 0.0
+		if total > 0 {
+			rate = float64(g.Passed) / float64(total)
+		}
+		b.WriteString(fmt.Sprintf("    %-13s %s %s\n",
+			truncate(g.Gate, 13),
+			renderBar(rate, barW),
+			styleDim.Render(fmt.Sprintf("%d/%d", g.Passed, total)),
+		))
+	}
+	return strings.TrimRight(b.String(), "\n")
+}
+
+// renderDecisions renders the right pane in decisions mode: each governance
+// decision as task → gate funnel → per-unit verdict (✓ selected / ✗ skipped).
+func renderDecisions(traces []DecisionTraceRow, width int) string {
+	if len(traces) == 0 {
+		return styleDim.Render("  no decision traces recorded")
+	}
+	var b strings.Builder
+	for i, tr := range traces {
+		if i > 0 {
+			b.WriteString("\n")
+		}
+		b.WriteString(fmt.Sprintf("  %s  %s\n",
+			styleValue.Render(truncate(tr.Task, width-24)),
+			styleDim.Render(fmt.Sprintf("%d selected / %d skipped", tr.SelectedCount, tr.SkippedCount)),
+		))
+		b.WriteString(renderGateFunnel(tr.GateSummary, width) + "\n")
+		for _, u := range tr.Units {
+			if u.Outcome == "selected" {
+				score := ""
+				if u.Score > 0 {
+					score = styleDim.Render(fmt.Sprintf("  (%.2f)", u.Score))
+				}
+				b.WriteString("    " + styleSaved.Render("✓ ") + u.UnitID + score + "\n")
+			} else {
+				why := u.RejectedBy
+				if why == "" {
+					why = "skipped"
+				}
+				b.WriteString("    " + styleWarn.Render("✗ ") + styleDim.Render(u.UnitID+" — "+why) + "\n")
+			}
+		}
+	}
+	return strings.TrimRight(b.String(), "\n")
+}
+
 // renderSessionList renders the left column: one session per entry, the
 // selected row marked with ▸.
 func renderSessionList(sessions []SessionRow, sel, width int) string {
@@ -102,13 +172,21 @@ func renderSessionBrowser(m model) string {
 	left := styleTitle.Render(" Sessions") + "\n\n" +
 		renderSessionList(m.sessions, m.sessionSel, leftW)
 
-	detail := styleTitle.Render(" Steps")
+	title := " Steps"
+	if m.showDecisions {
+		title = " Decisions"
+	}
+	detail := styleTitle.Render(title)
 	if m.sessionSel >= 0 && m.sessionSel < len(m.sessions) {
 		sel := m.sessions[m.sessionSel]
 		detail += styleDim.Render(fmt.Sprintf("  %s · %s · %dt",
 			shortID(sel.SessionID), truncate(sel.Model, 16), sel.Turns))
 	}
-	right := detail + "\n\n" + renderSteps(m.steps, rightW)
+	body := renderSteps(m.steps, rightW)
+	if m.showDecisions {
+		body = renderDecisions(m.traces, rightW)
+	}
+	right := detail + "\n\n" + body
 
 	leftCol := lipgloss.NewStyle().Width(leftW).Render(left)
 	rightCol := lipgloss.NewStyle().Width(rightW).Render(right)
