@@ -452,8 +452,12 @@ func (m model) View() string {
 	}
 	var status string
 	if m.sessionMode {
+		pane := "g decisions"
+		if m.showDecisions {
+			pane = "g steps"
+		}
 		status = styleDim.Render(fmt.Sprintf(
-			"q quit · j/k select · esc back · ↑↓ scroll%s · updated %s", scrollPct, ago,
+			"q quit · j/k select · %s · esc back · ↑↓ scroll%s · updated %s", pane, scrollPct, ago,
 		))
 	} else if m.carouselMode {
 		status = styleDim.Render(fmt.Sprintf(
