@@ -451,13 +451,17 @@ func (m model) View() string {
 		scrollPct = fmt.Sprintf(" · %.0f%%", m.vp.ScrollPercent()*100)
 	}
 	var status string
-	if m.carouselMode {
+	if m.sessionMode {
+		status = styleDim.Render(fmt.Sprintf(
+			"q quit · j/k select · esc back · ↑↓ scroll%s · updated %s", scrollPct, ago,
+		))
+	} else if m.carouselMode {
 		status = styleDim.Render(fmt.Sprintf(
 			"q quit · f exit focus · space/←→ navigate · ↑↓ scroll%s · updated %s", scrollPct, ago,
 		))
 	} else {
 		status = styleDim.Render(fmt.Sprintf(
-			"q quit · d days · r refresh · f focus · t context · ↑↓ scroll%s · updated %s", scrollPct, ago,
+			"q quit · d days · r refresh · f focus · t context · s sessions · ↑↓ scroll%s · updated %s", scrollPct, ago,
 		))
 	}
 
