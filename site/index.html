@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KCP Dashboard — the agent thought graph</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0d1117; --bg2:#161b22; --bg3:#1c2128; --surface:#21262d; --border:#30363d;
+  --text:#e6edf3; --muted:#8b949e; --accent:#39c5cf; --green:#3fb950; --red:#f85149;
+  --yellow:#d29922; --blue:#58a6ff; --purple:#bc8cff;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'JetBrains Mono',ui-monospace,Menlo,monospace;background:var(--bg);color:var(--text);font-size:14px;line-height:1.65;-webkit-font-smoothing:antialiased}
+.wrap{max-width:860px;margin:0 auto;padding:32px 22px 72px}
+a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+h1{font-size:30px;font-weight:700;letter-spacing:-.5px;line-height:1.2}
+h2{font-size:19px;font-weight:700;margin:38px 0 12px;padding-top:18px;border-top:1px solid var(--border)}
+h3{font-size:15px;font-weight:600;margin:20px 0 8px;color:var(--accent)}
+p{margin:10px 0;color:#c9d1d9}
+.muted{color:var(--muted)}
+.lede{font-size:16px;color:#c9d1d9;margin-top:14px}
+.badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+.badge{font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:var(--surface);border:1px solid var(--border);color:var(--muted)}
+.cta{display:inline-flex;align-items:center;gap:8px;background:var(--accent);color:#04252a;font-weight:700;padding:11px 20px;border-radius:8px;margin:22px 0 6px}
+.cta:hover{filter:brightness(1.08);text-decoration:none}
+ul,ol{margin:10px 0 10px 22px}li{margin:5px 0;color:#c9d1d9}
+code{background:var(--bg2);border:1px solid var(--border);border-radius:5px;padding:1px 6px;font-size:12.5px;color:var(--text)}
+pre{background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:14px 16px;overflow-x:auto;margin:14px 0;font-size:12.5px;line-height:1.6}
+pre code{background:none;border:none;padding:0}
+kbd{font-family:inherit;background:var(--surface);border:1px solid var(--border);border-bottom-width:2px;border-radius:5px;padding:1px 7px;font-size:12px}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px 18px;margin:14px 0}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}@media(max-width:680px){.two{grid-template-columns:1fr}}
+.flow{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;margin:16px 0;font-size:12.5px;color:var(--muted);white-space:pre;overflow-x:auto;line-height:1.7}
+.flow b{color:var(--accent)}
+table{width:100%;border-collapse:collapse;margin:12px 0;font-size:12.5px}
+th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--border)}
+th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+td code{font-size:12px}
+.k{color:var(--yellow)}
+.pill{display:inline-block;font-size:11px;padding:1px 8px;border-radius:12px}
+.pill.sel{background:rgba(63,185,80,.15);color:var(--green)}
+.pill.skip{background:rgba(248,81,73,.15);color:var(--red)}
+footer{margin-top:44px;padding-top:18px;border-top:1px solid var(--border);color:var(--muted);font-size:12px;line-height:1.9}
+.note{border-left:2px solid var(--accent);padding:2px 0 2px 14px;margin:14px 0;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>The agent thought graph</h1>
+  <p class="lede">kcp-dashboard shows not just <em>what</em> an AI agent did, but <em>why</em> it was given the knowledge it used — the deterministic decision behind every governed context load.</p>
+  <div class="badges">
+    <span class="badge">KCP · Knowledge Context Protocol</span>
+    <span class="badge">Bubble Tea TUI · Go</span>
+    <span class="badge">Apache-2.0</span>
+  </div>
+  <a class="cta" href="demo.html">▶ Open the interactive demo</a>
+  <p class="muted" style="font-size:12px">Runs entirely in your browser — a simulated agent session driving the real two-layer view.</p>
+
+  <h2>Why this exists</h2>
+  <p>Agent monitors show a stream of tool calls: a flat list of <em>what happened</em>. What they can't show is the <em>reasoning structure</em> — and an LLM's true chain-of-thought isn't faithfully observable (emitted "reasoning" is an unreliable narrator).</p>
+  <p>So we don't scrape thoughts. We <b>reconstruct the graph from deterministic, observable signals</b> the KCP toolchain already produces. Two faithful layers:</p>
+  <div class="two">
+    <div class="card"><h3>Action layer</h3><p class="muted" style="margin:0">The ordered steps a session took — tool, command, whether KCP guidance matched. Reconstructed from <code>tool_events</code>.</p></div>
+    <div class="card"><h3>Decision layer</h3><p class="muted" style="margin:0">The deterministic <b>13-gate cascade</b> behind every knowledge load — which units were selected or skipped, and at which gate. Reconstructed from kcp-harness's <code>kcp_trace</code>.</p></div>
+  </div>
+
+  <h2>How it works</h2>
+  <p>The decision layer is the interesting half, and it's genuinely faithful because the governance is <b>deterministic</b>: the kcp-agent planner runs a fixed cascade of gates over every unit in a manifest and records the verdict for each. kcp-harness emits a compact, <b>content-free</b> projection of that trace; kcp-dashboard stores and renders it.</p>
+  <div class="flow">  <b>kcp-harness</b> (governs a tool call)
+       │  kcp_trace → DecisionTrace  (13-gate cascade per unit)
+       │  toTraceEvent()  — ids, paths, gate verdicts, scores only · no content
+       └── POST /trace ──► <b>kcp-dashboard :7734</b> ──► decision_traces + trace_units
+                                    │
+                     press <b>s</b> → browse sessions   press <b>g</b> → Steps ⇄ Decisions
+                                    │
+              task → gate funnel → ✓ selected (score) / ✗ skipped-at-&lt;gate&gt;</div>
+  <div class="note">Emission is <b>opt-in</b> (a dashboard URL must be configured) and <b>fail-open</b> — telemetry can never block or delay governance. Traces carry no file content, only structural facts.</div>
+
+  <h2>Setup</h2>
+  <h3>1 · Install &amp; run the dashboard</h3>
+  <pre><code>go install github.com/Cantara/kcp-dashboard@latest
+
+# TUI (reads ~/.kcp/usage.db + memory.db)
+kcp-dashboard
+
+# hook + ingest daemon on :7734 (receives /trace)
+kcp-dashboard serve</code></pre>
+  <h3>2 · Point kcp-harness at it</h3>
+  <p>Add a <code>dashboard</code> block to your <code>harness.yaml</code>. Absent = disabled, so it's safe to leave out in environments without a dashboard:</p>
+  <pre><code>dashboard:
+  url: http://localhost:7734/trace</code></pre>
+  <p>Now, whenever an agent behind the harness calls <code>kcp_trace</code>, the harness POSTs the decision trace to the dashboard. Browse it live in the TUI.</p>
+
+  <h2>Using the drill-down</h2>
+  <table>
+    <thead><tr><th>Key</th><th>Action</th></tr></thead>
+    <tbody>
+      <tr><td><kbd>s</kbd></td><td>Enter / leave the session drill-down</td></tr>
+      <tr><td><kbd>j</kbd> / <kbd>k</kbd></td><td>Move the session selection (reloads its steps &amp; decisions)</td></tr>
+      <tr><td><kbd>g</kbd></td><td>Toggle the right pane between <b>Steps</b> and <b>Decisions</b></td></tr>
+      <tr><td><kbd>esc</kbd></td><td>Back to the aggregate dashboard</td></tr>
+      <tr><td><kbd>q</kbd></td><td>Quit</td></tr>
+    </tbody>
+  </table>
+  <p><b>Steps</b> is the action layer — the ordered timeline. <b>Decisions</b> is the decision layer — each governed decision as <code>task → gate funnel → per-unit verdict</code>.</p>
+
+  <h2>Reading a decision</h2>
+  <p>A decision renders as a task, a funnel showing how many candidate units each gate passed, and the per-unit outcome:</p>
+  <pre><code>access resolve incident INC-4821          5 selected / 5 skipped
+  relevance   ██████████████████░░░░  8/10
+  temporal    ████████████████████░░  9/10
+  payment     ██████████████████░░░░  8/9
+  <span class="k">…</span>
+  ✓ oncall-runbook  (0.86)
+  ✓ escalation-policy  (0.71)
+  ✗ pci-scope    — skipped at temporal
+  ✗ vendor-intel — skipped at payment
+  ✗ prod-secrets — skipped at access</code></pre>
+  <p>You can see exactly where a unit dropped out of the cascade — a superseded doc dies at <code>temporal</code>, a paywalled feed at <code>payment</code>, a restricted path at <code>access</code>. That is the thought graph: not a guess about what the model was thinking, but the deterministic reason it was handed this knowledge and not that.</p>
+
+  <h3>The 13 gates (evaluation order)</h3>
+  <p class="muted"><code>audience → not_for → temporal → deprecated → supersession → relevance → attestation → payment → access → strict → max_units → money_budget → context_budget</code></p>
+  <p class="muted" style="font-size:12.5px">Each unit stops at its first failing gate. A unit that clears every gate is loaded — subject to the <code>max_units</code> / budget caps that rank survivors by relevance.</p>
+
+  <a class="cta" href="demo.html">▶ See it in action</a>
+
+  <footer>
+    Part of the <a href="https://github.com/Cantara/knowledge-context-protocol">KCP ecosystem</a> ·
+    <a href="https://github.com/Cantara/kcp-dashboard">kcp-dashboard</a> ·
+    <a href="https://github.com/Cantara/kcp-harness">kcp-harness</a>
+    <br>The interactive demo generates synthetic traffic in your browser; production data flows from real governance decisions.
+  </footer>
+
+</div>
+</body>
+</html>
