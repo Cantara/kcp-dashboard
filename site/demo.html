@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KCP Thought Graph — Interactive Demo</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0d1117; --bg2:#161b22; --bg3:#1c2128; --surface:#21262d; --border:#30363d;
+  --text:#e6edf3; --muted:#8b949e; --accent:#39c5cf; --green:#3fb950; --red:#f85149;
+  --yellow:#d29922; --blue:#58a6ff; --purple:#bc8cff; --cyan:#79c0ff;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'JetBrains Mono',ui-monospace,Menlo,monospace;background:var(--bg);color:var(--text);font-size:13px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding:20px 20px 56px}
+header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding-bottom:14px;margin-bottom:18px;border-bottom:1px solid var(--border)}
+header h1{font-size:16px;font-weight:700}
+.badge{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;padding:3px 9px;border-radius:20px}
+.badge.brand{background:rgba(57,197,207,.15);color:var(--accent);border:1px solid rgba(57,197,207,.3)}
+.badge.sim{background:rgba(188,140,255,.13);color:var(--purple);border:1px solid rgba(188,140,255,.3)}
+.live{margin-left:auto;display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+.live.paused .dot{background:var(--muted);animation:none}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(63,185,80,.5)}70%{box-shadow:0 0 0 7px rgba(63,185,80,0)}100%{box-shadow:0 0 0 0 rgba(63,185,80,0)}}
+a{color:var(--accent)}
+.deck{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-bottom:16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+button{font-family:inherit;font-size:12px;font-weight:600;color:var(--text);background:var(--surface);border:1px solid var(--border);padding:7px 13px;border-radius:7px;cursor:pointer;transition:all .15s;display:inline-flex;gap:6px;align-items:center}
+button:hover{background:var(--bg3);border-color:#444c56}
+button.primary{background:var(--accent);color:#04252a;border-color:var(--accent)}
+button.primary:hover{filter:brightness(1.08)}
+.ctl{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:11px}
+.ctl label{text-transform:uppercase;letter-spacing:.5px}
+input[type=range]{-webkit-appearance:none;appearance:none;height:4px;background:var(--border);border-radius:3px;width:96px;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:var(--accent);cursor:pointer}
+.narrate{margin-left:auto;font-size:11px;color:var(--muted);max-width:360px;text-align:right}
+.hint{font-size:11px;color:var(--muted);margin:-8px 0 14px}
+kbd{font-family:inherit;background:var(--surface);border:1px solid var(--border);border-bottom-width:2px;border-radius:5px;padding:1px 6px;font-size:11px;color:var(--text)}
+/* Cockpit */
+.grid{display:grid;grid-template-columns:280px 1fr;gap:14px;align-items:start}
+@media(max-width:840px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.phead{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px}
+.phead h2{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px}
+.sessions{list-style:none}
+.sessions li{padding:11px 14px;border-top:1px solid var(--border);cursor:pointer}
+.sessions li:first-child{border-top:none}
+.sessions li.sel{background:var(--bg3);box-shadow:inset 2px 0 0 var(--accent)}
+.sid{color:var(--cyan);font-weight:600}
+.smeta{font-size:10.5px;color:var(--muted);margin-top:3px;display:flex;gap:10px}
+.smeta b{color:var(--text)}
+.tabs{display:flex;gap:6px}
+.tab{font-size:11px;font-weight:600;padding:5px 12px;border-radius:6px;cursor:pointer;background:var(--surface);border:1px solid var(--border);color:var(--muted)}
+.tab.active{background:rgba(57,197,207,.15);border-color:rgba(57,197,207,.4);color:var(--accent)}
+.body{padding:12px 14px;min-height:420px;max-height:560px;overflow-y:auto}
+/* Steps */
+.step{display:grid;grid-template-columns:64px 52px 1fr auto;gap:8px;padding:4px 0;border-top:1px solid rgba(48,54,61,.5);font-size:12px;animation:slide .3s ease}
+.step:first-child{border-top:none}
+@keyframes slide{from{opacity:0;transform:translateY(-4px)}to{opacity:1}}
+.step .t{color:var(--muted);font-size:11px}
+.step .tool{color:var(--text)}
+.step .cmd{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.g-yes{color:var(--green)}.g-no{color:var(--muted)}
+.step.gov .cmd{color:var(--text)}
+/* Decisions */
+.dtask{color:var(--accent);font-weight:600;margin-bottom:2px}
+.dsub{font-size:11px;color:var(--muted);margin-bottom:12px}
+.gate{display:grid;grid-template-columns:120px 1fr 44px;gap:8px;align-items:center;padding:2px 0;font-size:11.5px}
+.gate .gn{color:var(--muted)}
+.gate.drop .gn{color:var(--yellow)}
+.bar{height:9px;background:var(--surface);border-radius:3px;overflow:hidden}
+.bar>i{display:block;height:100%;background:var(--accent);border-radius:3px;transition:width .5s ease}
+.gate.drop .bar>i{background:var(--yellow)}
+.gc{color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
+.units{margin-top:14px;border-top:1px solid var(--border);padding-top:10px}
+.unit{padding:3px 0;font-size:12px}
+.unit .mk{font-weight:700}
+.unit.sel .mk{color:var(--green)}
+.unit.skip .mk{color:var(--red)}
+.unit .uid{color:var(--text)}
+.unit.skip .uid{color:var(--muted)}
+.unit .why{color:var(--muted);font-size:11px}
+.unit .sc{color:var(--muted);font-size:11px}
+.empty{color:var(--muted);padding:20px 4px}
+footer{margin-top:26px;text-align:center;color:var(--muted);font-size:11px;line-height:1.8}
+.legend{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-top:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>KCP Dashboard</h1>
+    <span class="badge brand">Thought Graph</span>
+    <span class="badge sim">Simulated</span>
+    <span class="live" id="live"><span class="dot"></span><span id="livelabel">Live</span></span>
+  </header>
+
+  <div class="deck">
+    <button class="primary" id="play">⏸ Pause</button>
+    <div class="ctl"><label>Speed</label><input type="range" id="speed" min="1" max="6" value="3"><span id="spd" style="color:var(--text)">1.5×</span></div>
+    <button id="newtask">↻ New task</button>
+    <div class="narrate" id="narrate">An agent is resolving an incident. Watch KCP govern which knowledge it may load.</div>
+  </div>
+  <div class="hint">This mirrors the real TUI: <kbd>s</kbd> browse sessions · <kbd>g</kbd> toggle Steps ⇄ Decisions · <kbd>j</kbd>/<kbd>k</kbd> move. Here, use the buttons.</div>
+
+  <div class="grid">
+    <div class="panel">
+      <div class="phead"><h2>Active Sessions</h2><span class="dot" title="live"></span></div>
+      <ul class="sessions" id="sessions"></ul>
+    </div>
+    <div class="panel">
+      <div class="phead">
+        <div class="tabs">
+          <button class="tab active" data-pane="steps" id="tab-steps">Steps</button>
+          <button class="tab" data-pane="decisions" id="tab-dec">Decisions</button>
+        </div>
+        <span id="paneinfo" style="font-size:11px;color:var(--muted)"></span>
+      </div>
+      <div class="body" id="body"></div>
+    </div>
+  </div>
+
+  <footer>
+    Synthetic traffic generated in your browser — no backend. In production the flow is real:
+    <br><b>kcp-harness</b> governs a call → <b>kcp_trace</b> → content-free trace → <code>POST /trace</code> → <b>kcp-dashboard</b> renders this.
+    <div class="legend">
+      <span><span class="g-yes">✓</span> selected (score)</span>
+      <span><span style="color:var(--red)">✗</span> skipped — rejecting gate</span>
+      <span><a href="index.html">← Back to the guide</a></span>
+    </div>
+  </footer>
+</div>
+
+<script>
+"use strict";
+// ---- The 13-gate cascade (kcp-agent order) --------------------------------
+const GATES = ["audience","not_for","temporal","deprecated","supersession","relevance","attestation","payment","access","strict","max_units","money_budget","context_budget"];
+const MAX_UNITS = 5;
+
+// Knowledge units for a simulated "kb://acme-eng" manifest. Props drive the cascade.
+function manifest(){
+  return [
+    {id:"oncall-runbook",   path:"docs/runbooks/oncall.md",     score:0.86, temporal:"ok",        pay:"free", access:"public",     attest:false, deprecated:false, audience:true},
+    {id:"escalation-policy",path:"policies/escalation.md",      score:0.71, temporal:"ok",        pay:"free", access:"public",     attest:false, deprecated:false, audience:true},
+    {id:"incident-comms",   path:"docs/incident-comms.md",      score:0.64, temporal:"ok",        pay:"free", access:"public",     attest:false, deprecated:false, audience:true},
+    {id:"sla-matrix",       path:"docs/sla-matrix.md",          score:0.58, temporal:"ok",        pay:"free", access:"public",     attest:false, deprecated:false, audience:true},
+    {id:"threat-model",     path:"kb/security/threat-model.md", score:0.55, temporal:"ok",        pay:"free", access:"public",     attest:false, deprecated:false, audience:true},
+    {id:"pci-scope",        path:"policies/pci-scope.md",       score:0.40, temporal:"superseded",pay:"free", access:"public",     attest:false, deprecated:false, audience:true},
+    {id:"vendor-intel",     path:"kb/threat-intel/feed.md",     score:0.62, temporal:"ok",        pay:"paid", access:"public",     attest:false, deprecated:false, audience:true},
+    {id:"prod-secrets",     path:"ops/secrets.md",              score:0.50, temporal:"ok",        pay:"free", access:"restricted", attest:false, deprecated:false, audience:true},
+    {id:"legacy-auth",      path:"docs/legacy/auth.md",         score:0.33, temporal:"ok",        pay:"free", access:"public",     attest:false, deprecated:true,  audience:true},
+    {id:"marketing-deck",   path:"marketing/pitch.md",          score:0.05, temporal:"ok",        pay:"free", access:"public",     attest:false, deprecated:false, audience:false},
+  ];
+}
+
+// Evaluate one unit through the cascade; return {gates:[{gate,pass}], rejectedBy}
+function evalUnit(u){
+  const verdicts=[];
+  const checks={
+    audience:u.audience, not_for:true, temporal:u.temporal==="ok", deprecated:!u.deprecated,
+    supersession:u.temporal!=="superseded", relevance:u.score>0.1, attestation:!u.attest,
+    payment:u.pay==="free", access:u.access==="public", strict:true,
+    max_units:true, money_budget:true, context_budget:true,
+  };
+  for(const g of GATES){
+    const pass=checks[g];
+    verdicts.push({gate:g,pass});
+    if(!pass) return {gates:verdicts, rejectedBy:g};
+  }
+  return {gates:verdicts, rejectedBy:null};
+}
+
+// Build a full DecisionTrace for a task over the manifest.
+function computeTrace(task){
+  const units=manifest().map(u=>({u, ...evalUnit(u)}));
+  // Units surviving to max_units: rank by score, cap at MAX_UNITS.
+  const survivors=units.filter(x=>x.rejectedBy===null).sort((a,b)=>b.u.score-a.u.score);
+  survivors.forEach((x,i)=>{ if(i>=MAX_UNITS){ x.rejectedBy="max_units"; x.gates.push({gate:"max_units",pass:false}); }});
+  // gate summary: at each gate, count evaluated → passed/failed
+  const summary=GATES.map(g=>({gate:g,passed:0,failed:0}));
+  for(const x of units){
+    for(const v of x.gates){
+      const s=summary.find(s=>s.gate===v.gate);
+      if(v.pass) s.passed++; else s.failed++;
+    }
+  }
+  const out=units.map(x=>({
+    id:x.u.id, path:x.u.path, score:x.u.score,
+    outcome:x.rejectedBy===null?"selected":"skipped",
+    rejectedBy:x.rejectedBy,
+  }));
+  const selected=out.filter(u=>u.outcome==="selected").length;
+  return {task, asOf:"2026-07-14", selected, skipped:out.length-selected, gateSummary:summary.filter(s=>s.passed+s.failed>0), units:out};
+}
+
+// ---- Simulated session ----------------------------------------------------
+const TASKS=[
+  "resolve incident INC-4821 (checkout 5xx spike)",
+  "audit token issuance for the auth service",
+  "map the PCI boundary for the payments module",
+  "rotate the signing keys after the vendor alert",
+];
+const TOOLS=["Read","Grep","Bash","Edit","WebFetch"];
+const CMDS={Read:"docs/runbooks/oncall.md",Grep:"\"5xx\" src/",Bash:"kubectl logs -n prod checkout",Edit:"src/checkout/retry.ts",WebFetch:"https://status.acme.io"};
+
+let taskIdx=0;
+const state={ steps:[], trace:null, turns:0, sessionId:hex(8), agent:"claude-opus-4-8" };
+let pane="steps", running=true, speed=1.5, tick=0;
+
+function hex(n){let s="";for(let i=0;i<n;i++)s+="0123456789abcdef"[Math.floor(Math.random()*16)];return s;}
+const $=id=>document.getElementById(id);
+
+function newTask(){
+  state.steps=[]; state.trace=null; state.turns=0; state.sessionId=hex(8);
+  const t=TASKS[taskIdx%TASKS.length]; taskIdx++;
+  state.task=t;
+  $("narrate").textContent="Task: "+t;
+  // seed a planning decision immediately
+  planNow();
+  renderSessions(); render();
+}
+function planNow(){
+  state.trace=computeTrace("access "+ (state.task||TASKS[0]));
+  pushStep("kcp_plan", "plan \""+shorten(state.task,28)+"\"", true, true);
+}
+function shorten(s,n){return s.length>n?s.slice(0,n-1)+"…":s;}
+
+function pushStep(tool,cmd,governed,isPlan){
+  state.turns++;
+  const d=new Date();
+  state.steps.unshift({ ts:pad(d.getHours())+":"+pad(d.getMinutes())+":"+pad(d.getSeconds()),
+    tool, cmd, governed, guided:governed, plan:!!isPlan });
+  if(state.steps.length>60) state.steps.pop();
+}
+const pad=n=>String(n).padStart(2,"0");
+
+function step(){
+  if(!running) return;
+  // ~1 in 6 steps triggers a fresh governance decision (kcp_plan)
+  if(Math.random()<0.16){ planNow(); }
+  else{
+    const tool=TOOLS[Math.floor(Math.random()*TOOLS.length)];
+    const governed=Math.random()<0.5;
+    pushStep(tool, CMDS[tool], governed, false);
+  }
+  renderSessions(); render();
+}
+
+// ---- Render ----------------------------------------------------------------
+function renderSessions(){
+  const others=[
+    {id:"7f054f27",agent:"claude-sonnet-5",task:"add dashboard panel",n:44},
+    {id:"3a3c88ac",agent:"claude-opus-4-8",task:"triage flaky test",n:16},
+  ];
+  const live=`<li class="sel"><span class="sid">${state.sessionId}</span> <span style="color:var(--green);font-size:10px">● live</span>
+    <div class="smeta"><span><b>${state.turns}</b> steps</span><span>${state.agent}</span></div>
+    <div class="smeta">${shorten(state.task||"",30)}</div></li>`;
+  $("sessions").innerHTML=live+others.map(o=>`<li><span class="sid">${o.id}</span>
+    <div class="smeta"><span><b>${o.n}</b> steps</span><span>${o.agent}</span></div>
+    <div class="smeta">${o.task}</div></li>`).join("");
+}
+
+function render(){
+  $("paneinfo").textContent = state.trace ? (pane==="decisions"
+    ? state.trace.selected+" selected / "+state.trace.skipped+" skipped"
+    : state.turns+" steps") : "";
+  $("body").innerHTML = pane==="steps" ? renderSteps() : renderDecisions();
+}
+
+function renderSteps(){
+  if(!state.steps.length) return '<div class="empty">Waiting for the agent…</div>';
+  return state.steps.map(s=>{
+    const mk = s.governed ? '<span class="g-yes">✓</span>' : '<span class="g-no">·</span>';
+    return `<div class="step ${s.governed?'gov':''}"><span class="t">${s.ts}</span><span class="tool">${s.tool}</span><span class="cmd">${s.cmd}</span>${mk}</div>`;
+  }).join("");
+}
+
+function renderDecisions(){
+  const t=state.trace;
+  if(!t) return '<div class="empty">No decision yet — the agent hasn\'t planned against a governed domain.</div>';
+  const maxTotal=Math.max(...t.gateSummary.map(g=>g.passed+g.failed),1);
+  const funnel=t.gateSummary.map(g=>{
+    const total=g.passed+g.failed, rate=total?g.passed/total:0, drop=g.failed>0;
+    return `<div class="gate ${drop?'drop':''}"><span class="gn">${g.gate}</span>
+      <span class="bar"><i style="width:${Math.round(rate*100)}%"></i></span>
+      <span class="gc">${g.passed}/${total}</span></div>`;
+  }).join("");
+  const units=t.units.map(u=>{
+    if(u.outcome==="selected") return `<div class="unit sel"><span class="mk">✓</span> <span class="uid">${u.id}</span> <span class="sc">(${u.score.toFixed(2)})</span></div>`;
+    return `<div class="unit skip"><span class="mk">✗</span> <span class="uid">${u.id}</span> <span class="why">— skipped at <b style="color:var(--yellow)">${u.rejectedBy}</b></span></div>`;
+  }).join("");
+  return `<div class="dtask">${t.task}</div>
+    <div class="dsub">manifest kb://acme-eng · as-of ${t.asOf} · 13-gate cascade</div>
+    ${funnel}<div class="units">${units}</div>`;
+}
+
+// ---- Controls --------------------------------------------------------------
+function setPane(p){ pane=p; $("tab-steps").classList.toggle("active",p==="steps"); $("tab-dec").classList.toggle("active",p==="decisions"); render(); }
+$("tab-steps").onclick=()=>setPane("steps");
+$("tab-dec").onclick=()=>setPane("decisions");
+$("play").onclick=()=>{ running=!running; $("play").textContent=running?"⏸ Pause":"▶ Resume"; $("play").classList.toggle("primary",running); $("live").classList.toggle("paused",!running); $("livelabel").textContent=running?"Live":"Paused"; };
+const spdMap={1:0.5,2:1,3:1.5,4:2,5:3,6:4};
+$("speed").oninput=e=>{ speed=spdMap[e.target.value]; $("spd").textContent=speed+"×"; };
+$("newtask").onclick=newTask;
+document.addEventListener("keydown",e=>{ if(e.key==="g"||e.key==="G") setPane(pane==="steps"?"decisions":"steps"); });
+
+// ---- Boot ------------------------------------------------------------------
+function loop(){ step(); setTimeout(loop, 900/speed); }
+newTask(); loop();
+</script>
+</body>
+</html>
