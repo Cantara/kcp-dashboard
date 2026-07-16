@@ -121,9 +121,43 @@ kcp-dashboard serve</code></pre>
   ✗ prod-secrets — skipped at access</code></pre>
   <p>You can see exactly where a unit dropped out of the cascade — a superseded doc dies at <code>temporal</code>, a paywalled feed at <code>payment</code>, a restricted path at <code>access</code>. That is the thought graph: not a guess about what the model was thinking, but the deterministic reason it was handed this knowledge and not that.</p>
 
-  <h3>The 13 gates (evaluation order)</h3>
-  <p class="muted"><code>audience → not_for → temporal → deprecated → supersession → relevance → attestation → payment → access → strict → max_units → money_budget → context_budget</code></p>
-  <p class="muted" style="font-size:12.5px">Each unit stops at its first failing gate. A unit that clears every gate is loaded — subject to the <code>max_units</code> / budget caps that rank survivors by relevance.</p>
+  <h3>The 13 gates, in plain English</h3>
+  <p class="muted">Every candidate document is tested against these rules <b>in order</b> and stops at the first one it fails. That failing rule is the reason it was blocked.</p>
+  <table>
+    <thead><tr><th>Gate</th><th>Blocks a document when…</th></tr></thead>
+    <tbody>
+      <tr><td><code>audience</code></td><td>it isn't written for AI agents</td></tr>
+      <tr><td><code>not_for</code></td><td>it's explicitly excluded for this kind of use</td></tr>
+      <tr><td><code>temporal</code></td><td>it's out of date / not yet valid</td></tr>
+      <tr><td><code>deprecated</code></td><td>it's marked deprecated</td></tr>
+      <tr><td><code>supersession</code></td><td>a newer document replaces it</td></tr>
+      <tr><td><code>relevance</code></td><td>it isn't relevant to the task</td></tr>
+      <tr><td><code>attestation</code></td><td>it needs an attestation the agent doesn't have</td></tr>
+      <tr><td><code>payment</code></td><td>it costs money to read and hasn't been paid for</td></tr>
+      <tr><td><code>access</code></td><td>it's restricted and the agent isn't permitted</td></tr>
+      <tr><td><code>strict</code></td><td>strict mode drops anything not fully eligible</td></tr>
+      <tr><td><code>max_units</code></td><td>the context is already full — only the top few (by relevance) are kept</td></tr>
+      <tr><td><code>money_budget</code></td><td>loading it would exceed the money budget</td></tr>
+      <tr><td><code>context_budget</code></td><td>loading it would exceed the token budget</td></tr>
+    </tbody>
+  </table>
+  <p class="muted" style="font-size:12.5px">A document that clears every gate is loaded. Because the checks are fixed and ordered, the same inputs always produce the same decision — which is what makes this a faithful record rather than a guess about the model's reasoning.</p>
+
+  <h2>Words you'll see</h2>
+  <table>
+    <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td><b>Session</b></td><td>One agent working on one job, start to finish.</td></tr>
+      <tr><td><b>Step</b></td><td>A single thing the agent did (read a file, run a command, plan).</td></tr>
+      <tr><td><b>Manifest</b></td><td>A catalogue of an organisation's knowledge — the documents KCP can hand out, each with rules attached.</td></tr>
+      <tr><td><b>Unit</b></td><td>One document in the manifest — the thing that gets allowed in or blocked.</td></tr>
+      <tr><td><b>Gate</b></td><td>One rule in the 13-rule check.</td></tr>
+      <tr><td><b>Decision / trace</b></td><td>The full record of a knowledge request: which documents were considered and the gate verdict for each.</td></tr>
+      <tr><td><b>Score</b></td><td>How relevant a document is to the task (higher = more relevant).</td></tr>
+      <tr><td><span class="pill sel">✓ selected</span></td><td>Allowed in — the agent may read it.</td></tr>
+      <tr><td><span class="pill skip">✗ skipped</span></td><td>Blocked — labelled with the gate that stopped it.</td></tr>
+    </tbody>
+  </table>
 
   <a class="cta" href="demo.html">▶ See it in action</a>
 
