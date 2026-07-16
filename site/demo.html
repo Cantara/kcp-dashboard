@@ -25,7 +25,6 @@ header h1{font-size:16px;font-weight:700}
 .live.paused .dot{background:var(--muted);animation:none}
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(63,185,80,.5)}70%{box-shadow:0 0 0 7px rgba(63,185,80,0)}100%{box-shadow:0 0 0 0 rgba(63,185,80,0)}}
 
-/* Intro / explainer */
 .intro{background:linear-gradient(180deg,var(--bg2),rgba(22,27,34,.4));border:1px solid var(--border);border-radius:12px;padding:20px 22px;margin-bottom:16px}
 .intro h2{font-size:19px;font-weight:700;margin-bottom:8px;letter-spacing:-.2px}
 .intro p{color:#c9d1d9;margin:8px 0;max-width:82ch}
@@ -44,6 +43,23 @@ details.more{margin-top:12px;font-size:12.5px;color:var(--muted)}
 details.more summary{cursor:pointer;color:var(--accent);font-weight:600}
 details.more ul{margin:8px 0 0 20px}details.more li{margin:3px 0}
 
+/* Scenario picker */
+.scen{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px}
+.scen-head{font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:9px}
+.scen-chips{display:flex;gap:8px;flex-wrap:wrap}
+.scard{text-align:left;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 11px;cursor:pointer;transition:all .15s;min-width:150px}
+.scard:hover{border-color:#444c56}
+.scard.active{border-color:var(--accent);background:rgba(57,197,207,.1)}
+.scard .nm{font-weight:600;font-size:12px;color:var(--text);display:flex;align-items:center;gap:6px}
+.scard .lv{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:1px 6px;border-radius:10px}
+.lv.starter{background:rgba(63,185,80,.16);color:var(--green)}
+.lv.standard{background:rgba(88,166,255,.16);color:var(--blue)}
+.lv.advanced{background:rgba(188,140,255,.16);color:var(--purple)}
+.scard .dm{font-size:10px;color:var(--muted);margin-top:3px}
+.scen-info{margin-top:11px;font-size:12px;color:#c9d1d9;border-top:1px solid var(--border);padding-top:10px}
+.scen-info .ill{color:var(--muted);font-size:11.5px;margin-top:4px}
+.scen-info .ill code{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:0 5px;font-size:10.5px;color:var(--yellow)}
+
 .deck{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-bottom:10px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
 button{font-family:inherit;font-size:12px;font-weight:600;color:var(--text);background:var(--surface);border:1px solid var(--border);padding:7px 13px;border-radius:7px;cursor:pointer;transition:all .15s;display:inline-flex;gap:6px;align-items:center}
 button:hover{background:var(--bg3);border-color:#444c56}
@@ -52,12 +68,10 @@ button.primary{background:var(--accent);color:#04252a;border-color:var(--accent)
 .ctl label{text-transform:uppercase;letter-spacing:.5px}
 input[type=range]{-webkit-appearance:none;appearance:none;height:4px;background:var(--border);border-radius:3px;width:90px;cursor:pointer}
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:var(--accent);cursor:pointer}
-/* Narration */
 .narrate{background:var(--bg3);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:8px;padding:9px 14px;margin-bottom:16px;font-size:12.5px;color:#c9d1d9;min-height:38px;display:flex;align-items:center;gap:8px}
 .narrate .tag{color:var(--accent);font-weight:700;flex-shrink:0}
 
 kbd{font-family:inherit;background:var(--surface);border:1px solid var(--border);border-bottom-width:2px;border-radius:5px;padding:1px 6px;font-size:11px;color:var(--text)}
-/* Cockpit */
 .grid{display:grid;grid-template-columns:280px 1fr;gap:14px;align-items:start}
 @media(max-width:840px){.grid{grid-template-columns:1fr}}
 .panel{background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden}
@@ -76,7 +90,6 @@ kbd{font-family:inherit;background:var(--surface);border:1px solid var(--border)
 .tab{font-size:11px;font-weight:600;padding:5px 12px;border-radius:6px;cursor:pointer;background:var(--surface);border:1px solid var(--border);color:var(--muted)}
 .tab.active{background:rgba(57,197,207,.15);border-color:rgba(57,197,207,.4);color:var(--accent)}
 .body{padding:12px 14px;min-height:430px;max-height:560px;overflow-y:auto}
-/* Steps */
 .step{display:grid;grid-template-columns:64px 52px 1fr auto;gap:8px;padding:4px 0;border-top:1px solid rgba(48,54,61,.5);font-size:12px;animation:slide .3s ease}
 .step:first-child{border-top:none}
 @keyframes slide{from{opacity:0;transform:translateY(-4px)}to{opacity:1}}
@@ -86,7 +99,6 @@ kbd{font-family:inherit;background:var(--surface);border:1px solid var(--border)
 .g-yes{color:var(--green)}.g-no{color:var(--muted)}
 .step.gov .cmd{color:var(--text)}
 .pill-plan{font-size:9.5px;background:rgba(57,197,207,.15);color:var(--accent);border-radius:9px;padding:0 6px;margin-left:6px}
-/* Decisions */
 .dtask{color:var(--accent);font-weight:600;margin-bottom:2px}
 .dsub{font-size:11px;color:var(--muted);margin-bottom:6px}
 .dexplain{font-size:11.5px;color:var(--muted);background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:8px 11px;margin-bottom:12px}
@@ -121,34 +133,37 @@ footer{margin-top:26px;text-align:center;color:var(--muted);font-size:11px;line-
     <span class="live" id="live"><span class="dot"></span><span id="livelabel">Live</span></span>
   </header>
 
-  <!-- Plain-language explainer -->
   <div class="intro">
     <h2>What am I looking at?</h2>
-    <p class="big">An AI agent is doing a job — say, resolving an outage. To do it well it needs the <em>right</em> internal documents, but you don't want it quietly pulling in <em>anything</em>: stale runbooks, restricted files, paid feeds, or 50 pages that blow the budget.</p>
-    <p><b>KCP (Knowledge Context Protocol)</b> sits between the agent and your knowledge and checks every candidate document against a fixed list of rules — called <b>gates</b> — before the agent is allowed to read it. This page lets you watch that happen, live.</p>
-
+    <p class="big">An AI agent is doing a job. To do it well it needs the <em>right</em> internal documents — but you don't want it quietly pulling in <em>anything</em>: stale runbooks, restricted files, paid feeds, or 50 pages that blow the budget.</p>
+    <p><b>KCP (Knowledge Context Protocol)</b> sits between the agent and your knowledge and checks every candidate document against a fixed list of rules — <b>gates</b> — before the agent may read it. Pick a scenario below and watch it happen.</p>
     <div class="flowmini">
       <span class="chip">🤖 <b>Agent</b> needs knowledge</span><span class="arrow">→</span>
       <span class="chip">🚦 <b>KCP</b> runs the gates</span><span class="arrow">→</span>
       <span class="chip">✅ only what passes reaches the agent</span><span class="arrow">→</span>
       <span class="chip">📊 you see <b>what</b> &amp; <b>why</b></span>
     </div>
-
     <div class="tri">
       <div class="box"><h3><span class="n">1</span> Sessions</h3><p>Each row on the left is one agent working on one task. The top one is “live”.</p></div>
-      <div class="box"><h3><span class="n">2</span> Steps</h3><p>The <b>Steps</b> tab is <em>what</em> the agent did — its actions in order. A ✓ means KCP guided that action.</p></div>
-      <div class="box"><h3><span class="n">3</span> Decisions</h3><p>The <b>Decisions</b> tab is <em>why</em> — for each task, which documents were allowed in and which were blocked, and by which rule.</p></div>
+      <div class="box"><h3><span class="n">2</span> Steps</h3><p>The <b>Steps</b> tab is <em>what</em> the agent did. A ✓ means KCP guided that action.</p></div>
+      <div class="box"><h3><span class="n">3</span> Decisions</h3><p>The <b>Decisions</b> tab is <em>why</em> — which documents were allowed in and which were blocked, and by which rule.</p></div>
     </div>
-
     <details class="more">
       <summary>Why does this matter? (30-second version)</summary>
       <ul>
-        <li><b>Cost</b> — every document an agent reads costs tokens (money). KCP caps it and shows you where the budget went.</li>
-        <li><b>Safety</b> — least privilege for knowledge: restricted or out-of-date material is blocked <em>before</em> the agent sees it, not after.</li>
+        <li><b>Cost</b> — every document an agent reads costs tokens (money). KCP caps it and shows where the budget went.</li>
+        <li><b>Safety</b> — least privilege for knowledge: restricted or out-of-date material is blocked <em>before</em> the agent sees it.</li>
         <li><b>Auditability</b> — every decision is deterministic and recorded, so you can answer “why did the agent use <em>that</em>?” months later.</li>
-        <li><b>Trust</b> — this isn’t a guess at the model’s hidden “reasoning”; it’s the actual, repeatable rule check. Same inputs → same decision, every time.</li>
+        <li><b>Trust</b> — this isn't a guess at the model's hidden “reasoning”; it's the actual, repeatable rule check.</li>
       </ul>
     </details>
+  </div>
+
+  <!-- Scenario picker -->
+  <div class="scen">
+    <div class="scen-head">Pick a real-world scenario</div>
+    <div class="scen-chips" id="scen-chips"></div>
+    <div class="scen-info" id="scen-info"></div>
   </div>
 
   <div class="deck">
@@ -156,10 +171,10 @@ footer{margin-top:26px;text-align:center;color:var(--muted);font-size:11px;line-
     <div class="ctl"><label>Speed</label><input type="range" id="speed" min="1" max="6" value="3"><span id="spd" style="color:var(--text)">1.5×</span></div>
     <button id="newtask">↻ New task</button>
     <button id="gotodec">👉 Show me a decision</button>
-    <span style="margin-left:auto;font-size:11px;color:var(--muted)">Mirrors the real TUI — <kbd>s</kbd> sessions · <kbd>g</kbd> steps⇄decisions · <kbd>j</kbd>/<kbd>k</kbd> move</span>
+    <span style="margin-left:auto;font-size:11px;color:var(--muted)">Real TUI keys — <kbd>s</kbd> sessions · <kbd>g</kbd> steps⇄decisions · <kbd>j</kbd>/<kbd>k</kbd> move</span>
   </div>
 
-  <div class="narrate" id="narrate"><span class="tag">▶</span><span id="narratetext">Starting a simulated agent session…</span></div>
+  <div class="narrate" id="narrate"><span class="tag">▶</span><span id="narratetext">Loading scenario…</span></div>
 
   <div class="grid">
     <div class="panel">
@@ -183,7 +198,7 @@ footer{margin-top:26px;text-align:center;color:var(--muted);font-size:11px;line-
   </div>
 
   <footer>
-    Synthetic traffic, generated in your browser — no backend. In production the flow is real:
+    Synthetic traffic, generated in your browser — no backend. In production this is real:
     <br><b>kcp-harness</b> governs a call → sends a content-free <b>decision trace</b> → <b>kcp-dashboard</b> renders exactly this.
     <div class="legend">
       <span><span class="g-yes">✓</span> allowed in (with a relevance score)</span>
@@ -195,63 +210,148 @@ footer{margin-top:26px;text-align:center;color:var(--muted);font-size:11px;line-
 
 <script>
 "use strict";
-// ---- The 13-gate cascade (kcp-agent order) + plain-English meanings --------
 const GATES=["audience","not_for","temporal","deprecated","supersession","relevance","attestation","payment","access","strict","max_units","money_budget","context_budget"];
 const GATE_PLAIN={
   audience:"not written for AI agents", not_for:"explicitly excluded for this use",
-  temporal:"out of date", deprecated:"deprecated", supersession:"replaced by a newer doc",
-  relevance:"not relevant to the task", attestation:"needs an attestation the agent lacks",
+  temporal:"out of date", deprecated:"deprecated", supersession:"replaced by a newer version",
+  relevance:"not relevant to the task", attestation:"needs an attestation/consent the agent lacks",
   payment:"costs money to read (not paid)", access:"restricted — not permitted",
   strict:"dropped in strict mode", max_units:"context budget full — only the top few are kept",
-  money_budget:"over the money budget", context_budget:"over the token budget",
+  money_budget:"over the money budget", context_budget:"too large — over the token budget",
 };
 const MAX_UNITS=5;
 
-function manifest(){return[
-  {id:"oncall-runbook",   path:"docs/runbooks/oncall.md",     score:0.86,temporal:"ok",        pay:"free",access:"public",    attest:false,deprecated:false,audience:true},
-  {id:"escalation-policy",path:"policies/escalation.md",      score:0.71,temporal:"ok",        pay:"free",access:"public",    attest:false,deprecated:false,audience:true},
-  {id:"incident-comms",   path:"docs/incident-comms.md",      score:0.64,temporal:"ok",        pay:"free",access:"public",    attest:false,deprecated:false,audience:true},
-  {id:"sla-matrix",       path:"docs/sla-matrix.md",          score:0.58,temporal:"ok",        pay:"free",access:"public",    attest:false,deprecated:false,audience:true},
-  {id:"threat-model",     path:"kb/security/threat-model.md", score:0.55,temporal:"ok",        pay:"free",access:"public",    attest:false,deprecated:false,audience:true},
-  {id:"pci-scope",        path:"policies/pci-scope.md",       score:0.40,temporal:"superseded",pay:"free",access:"public",    attest:false,deprecated:false,audience:true},
-  {id:"vendor-intel",     path:"kb/threat-intel/feed.md",     score:0.62,temporal:"ok",        pay:"paid",access:"public",    attest:false,deprecated:false,audience:true},
-  {id:"prod-secrets",     path:"ops/secrets.md",              score:0.50,temporal:"ok",        pay:"free",access:"restricted",attest:false,deprecated:false,audience:true},
-  {id:"legacy-auth",      path:"docs/legacy/auth.md",         score:0.33,temporal:"ok",        pay:"free",access:"public",    attest:false,deprecated:true, audience:true},
-  {id:"marketing-deck",   path:"marketing/pitch.md",          score:0.05,temporal:"ok",        pay:"free",access:"public",    attest:false,deprecated:false,audience:false},
-];}
-
+// A unit's props drive the cascade. Defaults: passes everything.
+// audience(bool) notFor(bool) temporal("ok"|"expired"|"future") superseded(bool)
+// deprecated(bool) attest(bool) pay("free"|"paid") access("public"|"restricted")
+// heavy(bool→context_budget) score(relevance)
 function evalUnit(u){
   const v=[];
-  const c={audience:u.audience,not_for:true,temporal:u.temporal==="ok",deprecated:!u.deprecated,
-    supersession:u.temporal!=="superseded",relevance:u.score>0.1,attestation:!u.attest,
-    payment:u.pay==="free",access:u.access==="public",strict:true,max_units:true,money_budget:true,context_budget:true};
+  const c={
+    audience:u.audience!==false, not_for:!u.notFor, temporal:(u.temporal||"ok")==="ok",
+    deprecated:!u.deprecated, supersession:!u.superseded, relevance:(u.score??0)>0.1,
+    attestation:!u.attest, payment:(u.pay||"free")==="free", access:(u.access||"public")==="public",
+    strict:true, max_units:true, money_budget:true, context_budget:!u.heavy,
+  };
   for(const g of GATES){v.push({gate:g,pass:c[g]});if(!c[g])return{gates:v,rejectedBy:g};}
   return{gates:v,rejectedBy:null};
 }
-function computeTrace(task){
-  const units=manifest().map(u=>({u,...evalUnit(u)}));
-  const survivors=units.filter(x=>x.rejectedBy===null).sort((a,b)=>b.u.score-a.u.score);
+function computeTrace(task,manifest){
+  const units=manifest.map(u=>({u,...evalUnit(u)}));
+  const survivors=units.filter(x=>x.rejectedBy===null).sort((a,b)=>(b.u.score||0)-(a.u.score||0));
   survivors.forEach((x,i)=>{if(i>=MAX_UNITS){x.rejectedBy="max_units";x.gates.push({gate:"max_units",pass:false});}});
   const summary=GATES.map(g=>({gate:g,passed:0,failed:0}));
   for(const x of units)for(const v of x.gates){const s=summary.find(s=>s.gate===v.gate);if(v.pass)s.passed++;else s.failed++;}
-  const out=units.map(x=>({id:x.u.id,path:x.u.path,score:x.u.score,outcome:x.rejectedBy===null?"selected":"skipped",rejectedBy:x.rejectedBy}));
+  const out=units.map(x=>({id:x.u.id,path:x.u.path,score:x.u.score||0,outcome:x.rejectedBy===null?"selected":"skipped",rejectedBy:x.rejectedBy}));
   const selected=out.filter(u=>u.outcome==="selected").length;
-  return{task,asOf:"2026-07-14",selected,skipped:out.length-selected,gateSummary:summary.filter(s=>s.passed+s.failed>0),units:out};
+  return{task,selected,skipped:out.length-selected,gateSummary:summary.filter(s=>s.passed+s.failed>0),units:out};
 }
 
-// ---- Simulated session ----------------------------------------------------
-const TASKS=[
-  "resolve incident INC-4821 (checkout 5xx spike)",
-  "audit token issuance for the auth service",
-  "map the PCI boundary for the payments module",
-  "rotate the signing keys after the vendor alert",
+// ---- Scenarios -------------------------------------------------------------
+const SCENARIOS=[
+  {
+    id:"support", name:"Customer Support", level:"starter", domain:"kb://acme-support",
+    blurb:"A support assistant answering a billing question. Mostly permissive — a few docs are blocked for access or relevance.",
+    illustrates:["access","not_for","supersession","relevance"],
+    agent:"claude-haiku-4.5",
+    tasks:["answer a customer's refund-policy question","explain the annual-plan discount","help a customer export their invoices"],
+    tools:{Read:"kb/refunds.md",Search:"\"refund window\"",WebFetch:"https://help.acme.io/billing"},
+    manifest:[
+      {id:"how-to-refunds",   path:"kb/refunds.md",            score:0.90},
+      {id:"billing-faq",      path:"kb/billing-faq.md",        score:0.75},
+      {id:"plan-comparison",  path:"kb/plans.md",              score:0.60},
+      {id:"portal-guide",     path:"kb/account-portal.md",     score:0.50},
+      {id:"internal-pricing", path:"internal/pricing-playbook.md", score:0.55, access:"restricted"},
+      {id:"eu-dpa-legal",     path:"legal/eu-dpa.md",          score:0.40, notFor:true},
+      {id:"refund-policy-2019",path:"kb/archive/refunds-2019.md",score:0.55, superseded:true},
+      {id:"roadmap-teaser",   path:"marketing/roadmap.md",     score:0.06},
+    ],
+  },
+  {
+    id:"incident", name:"Incident Response", level:"standard", domain:"kb://acme-eng",
+    blurb:"An SRE agent resolving a production outage. A stale runbook, a paid intel feed, and restricted secrets all get blocked at different gates.",
+    illustrates:["temporal","payment","access","max_units"],
+    agent:"claude-opus-4-8",
+    tasks:["resolve incident INC-4821 (checkout 5xx spike)","find the on-call escalation path","check the SLA for payments"],
+    tools:{Read:"docs/runbooks/oncall.md",Grep:"\"5xx\" src/",Bash:"kubectl logs -n prod checkout",WebFetch:"https://status.acme.io"},
+    manifest:[
+      {id:"oncall-runbook",   path:"docs/runbooks/oncall.md",     score:0.86},
+      {id:"escalation-policy",path:"policies/escalation.md",      score:0.71},
+      {id:"incident-comms",   path:"docs/incident-comms.md",      score:0.64},
+      {id:"sla-matrix",       path:"docs/sla-matrix.md",          score:0.58},
+      {id:"threat-model",     path:"kb/security/threat-model.md", score:0.55},
+      {id:"pci-scope",        path:"policies/pci-scope.md",       score:0.40, temporal:"expired"},
+      {id:"vendor-intel",     path:"kb/threat-intel/feed.md",     score:0.62, pay:"paid"},
+      {id:"prod-secrets",     path:"ops/secrets.md",              score:0.50, access:"restricted"},
+      {id:"legacy-auth",      path:"docs/legacy/auth.md",         score:0.33, deprecated:true},
+      {id:"marketing-deck",   path:"marketing/pitch.md",          score:0.05, audience:false},
+    ],
+  },
+  {
+    id:"code", name:"Codebase Copilot", level:"standard", domain:"repo://acme-app",
+    blurb:"A coding agent adding a feature. Deprecated modules, a superseded design doc, vendored code, and a giant generated file are all filtered out.",
+    illustrates:["deprecated","supersession","not_for","context_budget"],
+    agent:"claude-sonnet-5",
+    tasks:["add retry logic to the checkout client","find where charges are created","update the retry ADR"],
+    tools:{Read:"src/checkout/retry.ts",Grep:"\"fetch(\" src/",Edit:"src/checkout/retry.ts",Bash:"npm test checkout"},
+    manifest:[
+      {id:"checkout-retry",   path:"src/checkout/retry.ts",       score:0.88},
+      {id:"checkout-client",  path:"src/checkout/client.ts",      score:0.72},
+      {id:"adr-retries",      path:"docs/adr/0007-retries.md",    score:0.60},
+      {id:"payments-charge",  path:"src/payments/charge.ts",      score:0.52},
+      {id:"repo-readme",      path:"README.md",                   score:0.22},
+      {id:"legacy-http",      path:"src/legacy/http.ts",          score:0.50, deprecated:true},
+      {id:"adr-retries-old",  path:"docs/adr/0003-retries.md",    score:0.55, superseded:true},
+      {id:"vendor-bundle",    path:"vendor/lib/bundle.min.js",    score:0.45, notFor:true},
+      {id:"generated-types",  path:"generated/api-types.d.ts",    score:0.48, heavy:true},
+    ],
+  },
+  {
+    id:"audit", name:"Financial Compliance", level:"advanced", domain:"kb://acme-finance",
+    blurb:"An agent assembling audit evidence. Controls need an auditor attestation, a market-data feed is paid, board minutes are restricted, and last year's report is out of date — most candidates are blocked.",
+    illustrates:["attestation","payment","access","temporal"],
+    agent:"claude-opus-4-8",
+    tasks:["assemble Q3 FY26 SOC 2 evidence","map the PCI-DSS scope","summarise the data-retention policy"],
+    tools:{Read:"reports/q3-fy26.md",Grep:"\"control CC6\" controls/",Export:"soc2-bundle",WebFetch:"https://bloomberg.acme.io/feed"},
+    manifest:[
+      {id:"q3-fy26-report",   path:"reports/q3-fy26.md",          score:0.70},
+      {id:"data-retention",   path:"policies/data-retention.md",  score:0.55},
+      {id:"audit-log-export", path:"evidence/audit-log.md",       score:0.45},
+      {id:"trust-policy",     path:"signed/trust-policy.md",      score:0.40},
+      {id:"soc2-cc6",         path:"controls/soc2-cc6.md",        score:0.80, attest:true},
+      {id:"change-mgmt",      path:"controls/change-mgmt.md",     score:0.50, attest:true},
+      {id:"pci-dss-scope",    path:"policies/pci-dss-scope.md",   score:0.75, access:"restricted"},
+      {id:"board-minutes",    path:"board/minutes-2026.md",       score:0.60, access:"restricted"},
+      {id:"bloomberg-feed",   path:"market-data/feed.md",         score:0.65, pay:"paid"},
+      {id:"q3-fy25-report",   path:"reports/q3-fy25.md",          score:0.58, temporal:"expired"},
+    ],
+  },
+  {
+    id:"health", name:"Clinical Summary", level:"advanced", domain:"kb://acme-health",
+    blurb:"A clinical assistant summarising a case. Patient records need a consent attestation, PHI is restricted, an old protocol is expired, and a research preprint isn't for clinical use.",
+    illustrates:["attestation","access","temporal","not_for"],
+    agent:"claude-opus-4-8",
+    tasks:["summarise the sepsis case for handover","check the current antibiotics guideline","prepare a discharge summary"],
+    tools:{Read:"guidelines/sepsis.md",Search:"\"lactate threshold\"",Bash:"fhir get Patient/4821"},
+    manifest:[
+      {id:"sepsis-guideline", path:"guidelines/sepsis-care.md",   score:0.80},
+      {id:"antibiotics-guide",path:"guidelines/antibiotics.md",   score:0.70},
+      {id:"discharge-template",path:"templates/discharge.md",     score:0.42},
+      {id:"coding-reference", path:"billing/icd10.md",            score:0.20},
+      {id:"patient-chart",    path:"patient/chart-4821.md",       score:0.85, attest:true},
+      {id:"lab-results-phi",  path:"phi/lab-results-4821.md",     score:0.66, access:"restricted"},
+      {id:"protocol-2019",    path:"protocols/sepsis-2019.md",    score:0.60, temporal:"expired"},
+      {id:"research-preprint",path:"research/preprint-sepsis.md", score:0.55, notFor:true},
+    ],
+  },
 ];
-const TOOLS=["Read","Grep","Bash","Edit","WebFetch"];
-const CMDS={Read:"docs/runbooks/oncall.md",Grep:"\"5xx\" src/",Bash:"kubectl logs -n prod checkout",Edit:"src/checkout/retry.ts",WebFetch:"https://status.acme.io"};
-let taskIdx=0;
-const state={steps:[],trace:null,turns:0,sessionId:hex(8),agent:"claude-opus-4-8",task:""};
-let pane="steps",running=true,speed=1.5;
+let scenIdx=1; // start on Incident Response (standard)
+const scenario=()=>SCENARIOS[scenIdx];
 
+// ---- Simulated session -----------------------------------------------------
+let taskIdx=0;
+const state={steps:[],trace:null,turns:0,sessionId:hex(8),task:""};
+let pane="steps",running=true,speed=1.5;
 function hex(n){let s="";for(let i=0;i<n;i++)s+="0123456789abcdef"[Math.floor(Math.random()*16)];return s;}
 const $=id=>document.getElementById(id);
 function narrate(msg){$("narratetext").textContent=msg;}
@@ -259,23 +359,24 @@ function shorten(s,n){return s.length>n?s.slice(0,n-1)+"…":s;}
 const pad=n=>String(n).padStart(2,"0");
 
 function newTask(){
+  const sc=scenario();
   state.steps=[];state.trace=null;state.turns=0;state.sessionId=hex(8);
-  state.task=TASKS[taskIdx%TASKS.length];taskIdx++;
-  narrate('New task: "'+state.task+'". The agent starts working; KCP will vet the knowledge it reaches for.');
-  planNow(true);
-  renderSessions();render();
+  state.task=sc.tasks[taskIdx%sc.tasks.length];taskIdx++;
+  narrate('['+sc.name+'] New task: "'+state.task+'". The agent starts; KCP will vet the knowledge it reaches for.');
+  planNow(true);renderSessions();render();
 }
 function planNow(quiet){
-  state.trace=computeTrace("access "+state.task);
-  pushStep("kcp_plan","plan \""+shorten(state.task,26)+"\"",true,true);
-  if(!quiet) narrateDecision();
+  const sc=scenario();
+  state.trace=computeTrace("access "+state.task, sc.manifest);
+  pushStep("kcp_plan","plan \""+shorten(state.task,24)+"\"",true,true);
+  if(!quiet)narrateDecision();
 }
 function narrateDecision(){
   const t=state.trace;if(!t)return;
   const skips=t.units.filter(u=>u.outcome==="skipped");
   const bits=skips.slice(0,2).map(u=>u.id+" ("+GATE_PLAIN[u.rejectedBy]+")");
   const extra=skips.length>2?", and "+(skips.length-2)+" more":"";
-  narrate("KCP checked "+t.units.length+" documents for this task and let in "+t.selected+". Blocked: "+ (bits.join("; ")||"none") +extra+". Open the Decisions tab to see every gate.");
+  narrate("KCP checked "+t.units.length+" documents and let in "+t.selected+". Blocked: "+(bits.join("; ")||"none")+extra+". Open Decisions to see every gate.");
 }
 function pushStep(tool,cmd,governed,isPlan){
   state.turns++;const d=new Date();
@@ -285,15 +386,27 @@ function pushStep(tool,cmd,governed,isPlan){
 function step(){
   if(!running)return;
   if(Math.random()<0.16){planNow(false);}
-  else{const tool=TOOLS[Math.floor(Math.random()*TOOLS.length)];pushStep(tool,CMDS[tool],Math.random()<0.5,false);}
+  else{const tools=Object.keys(scenario().tools);const tool=tools[Math.floor(Math.random()*tools.length)];pushStep(tool,scenario().tools[tool],Math.random()<0.5,false);}
   renderSessions();render();
 }
 
 // ---- Render ----------------------------------------------------------------
+function renderScenarios(){
+  $("scen-chips").innerHTML=SCENARIOS.map((s,i)=>`<button class="scard ${i===scenIdx?'active':''}" data-i="${i}">
+    <div class="nm">${s.name} <span class="lv ${s.level}">${s.level}</span></div>
+    <div class="dm">${s.domain}</div></button>`).join("");
+  document.querySelectorAll(".scard").forEach(el=>el.onclick=()=>{scenIdx=+el.dataset.i;taskIdx=0;renderScenarios();renderScenInfo();newTask();});
+  renderScenInfo();
+}
+function renderScenInfo(){
+  const s=scenario();
+  $("scen-info").innerHTML=`${s.blurb}<div class="ill">Watch these gates fire: ${s.illustrates.map(g=>'<code>'+g+'</code>').join(" ")}</div>`;
+}
 function renderSessions(){
-  const others=[{id:"7f054f27",agent:"claude-sonnet-5",task:"add dashboard panel",n:44},{id:"3a3c88ac",agent:"claude-opus-4-8",task:"triage flaky test",n:16}];
+  const sc=scenario();
+  const others=[{id:"7f054f27",agent:"claude-sonnet-5",task:"earlier "+sc.name.toLowerCase()+" task",n:44},{id:"3a3c88ac",agent:"claude-haiku-4.5",task:"triage queue",n:16}];
   const live=`<li class="sel"><span class="sid">${state.sessionId}</span> <span style="color:var(--green);font-size:10px">● live</span>
-    <div class="smeta"><span><b>${state.turns}</b> steps</span><span>${state.agent}</span></div>
+    <div class="smeta"><span><b>${state.turns}</b> steps</span><span>${sc.agent}</span></div>
     <div class="smeta">${shorten(state.task||"",30)}</div></li>`;
   $("sessions").innerHTML=live+others.map(o=>`<li><span class="sid">${o.id}</span>
     <div class="smeta"><span><b>${o.n}</b> steps</span><span>${o.agent}</span></div>
@@ -303,9 +416,7 @@ function render(){
   $("panecap").textContent = pane==="steps"
     ? "What the agent did, newest first. ✓ = this action was guided by KCP."
     : "Why the agent got the knowledge it did. Each row is a candidate document; the bars show how many survived each rule.";
-  $("paneinfo").textContent = state.trace ? (pane==="decisions"
-    ? state.trace.selected+" allowed · "+state.trace.skipped+" blocked"
-    : state.turns+" steps") : "";
+  $("paneinfo").textContent = state.trace ? (pane==="decisions"?state.trace.selected+" allowed · "+state.trace.skipped+" blocked":state.turns+" steps") : "";
   $("body").innerHTML = pane==="steps" ? renderSteps() : renderDecisions();
 }
 function renderSteps(){
@@ -317,24 +428,21 @@ function renderSteps(){
   }).join("");
 }
 function renderDecisions(){
-  const t=state.trace;
-  if(!t)return '<div class="empty">No decision yet — the agent hasn\'t reached for governed knowledge. Click “Show me a decision”.</div>';
+  const t=state.trace,sc=scenario();
+  if(!t)return '<div class="empty">No decision yet — click “Show me a decision”.</div>';
   const funnel=t.gateSummary.map(g=>{
     const total=g.passed+g.failed,rate=total?g.passed/total:0,drop=g.failed>0;
-    const title=GATE_PLAIN[g.gate]?("gate: "+GATE_PLAIN[g.gate]):g.gate;
-    return `<div class="gate ${drop?'drop':''}" title="${title}"><span class="gn">${g.gate}</span>
-      <span class="bar"><i style="width:${Math.round(rate*100)}%"></i></span>
-      <span class="gc">${g.passed}/${total}</span></div>`;
+    return `<div class="gate ${drop?'drop':''}" title="gate: ${GATE_PLAIN[g.gate]||g.gate}"><span class="gn">${g.gate}</span>
+      <span class="bar"><i style="width:${Math.round(rate*100)}%"></i></span><span class="gc">${g.passed}/${total}</span></div>`;
   }).join("");
   const units=t.units.map(u=>{
     if(u.outcome==="selected")return `<div class="unit sel"><span class="mk">✓</span> <span class="uid">${u.id}</span> <span class="sc">— allowed in · relevance ${u.score.toFixed(2)}</span></div>`;
     return `<div class="unit skip"><span class="mk">✗</span> <span class="uid">${u.id}</span> <span class="why">— blocked: ${GATE_PLAIN[u.rejectedBy]} <b style="color:var(--yellow)">(${u.rejectedBy})</b></span></div>`;
   }).join("");
   return `<div class="dtask">${t.task}</div>
-    <div class="dsub">manifest kb://acme-eng · a fixed 13-rule check runs on every candidate document</div>
-    <div class="dexplain">Read this top-down: each document is tested against the rules in order and <b>stops at the first one it fails</b>. The bars show how many documents each rule passed — you can see exactly where candidates drop out.</div>
-    <div class="gh">The gate funnel — how many documents survived each rule</div>
-    ${funnel}
+    <div class="dsub">manifest ${sc.domain} · a fixed 13-rule check runs on every candidate document</div>
+    <div class="dexplain">Each document is tested against the rules in order and <b>stops at the first one it fails</b>. The bars show how many documents each rule passed — you see exactly where candidates drop out.</div>
+    <div class="gh">The gate funnel — how many documents survived each rule</div>${funnel}
     <div class="units"><div class="gh">The verdict per document</div>${units}</div>`;
 }
 
@@ -342,7 +450,7 @@ function renderDecisions(){
 function setPane(p){pane=p;$("tab-steps").classList.toggle("active",p==="steps");$("tab-dec").classList.toggle("active",p==="decisions");render();}
 $("tab-steps").onclick=()=>setPane("steps");
 $("tab-dec").onclick=()=>setPane("decisions");
-$("gotodec").onclick=()=>{ if(!state.trace) planNow(true); setPane("decisions"); narrateDecision(); };
+$("gotodec").onclick=()=>{if(!state.trace)planNow(true);setPane("decisions");narrateDecision();};
 $("play").onclick=()=>{running=!running;$("play").textContent=running?"⏸ Pause":"▶ Resume";$("play").classList.toggle("primary",running);$("live").classList.toggle("paused",!running);$("livelabel").textContent=running?"Live":"Paused";};
 const spdMap={1:0.5,2:1,3:1.5,4:2,5:3,6:4};
 $("speed").oninput=e=>{speed=spdMap[e.target.value];$("spd").textContent=speed+"×";};
@@ -350,8 +458,8 @@ $("newtask").onclick=newTask;
 document.addEventListener("keydown",e=>{if(e.key==="g"||e.key==="G")setPane(pane==="steps"?"decisions":"steps");});
 
 // ---- Boot ------------------------------------------------------------------
-function loop(){step();setTimeout(loop,900/speed);}
-newTask();loop();
+renderScenarios();newTask();
+(function loop(){step();setTimeout(loop,900/speed);})();
 </script>
 </body>
 </html>
