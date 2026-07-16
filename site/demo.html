@@ -12,9 +12,10 @@
   --yellow:#d29922; --blue:#58a6ff; --purple:#bc8cff; --cyan:#79c0ff;
 }
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'JetBrains Mono',ui-monospace,Menlo,monospace;background:var(--bg);color:var(--text);font-size:13px;line-height:1.5;-webkit-font-smoothing:antialiased}
-.wrap{max-width:1180px;margin:0 auto;padding:20px 20px 56px}
-header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding-bottom:14px;margin-bottom:18px;border-bottom:1px solid var(--border)}
+body{font-family:'JetBrains Mono',ui-monospace,Menlo,monospace;background:var(--bg);color:var(--text);font-size:13px;line-height:1.55;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding:20px 20px 64px}
+a{color:var(--accent)}
+header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding-bottom:14px;margin-bottom:16px;border-bottom:1px solid var(--border)}
 header h1{font-size:16px;font-weight:700}
 .badge{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;padding:3px 9px;border-radius:20px}
 .badge.brand{background:rgba(57,197,207,.15);color:var(--accent);border:1px solid rgba(57,197,207,.3)}
@@ -23,27 +24,49 @@ header h1{font-size:16px;font-weight:700}
 .dot{width:8px;height:8px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
 .live.paused .dot{background:var(--muted);animation:none}
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(63,185,80,.5)}70%{box-shadow:0 0 0 7px rgba(63,185,80,0)}100%{box-shadow:0 0 0 0 rgba(63,185,80,0)}}
-a{color:var(--accent)}
-.deck{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-bottom:16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+
+/* Intro / explainer */
+.intro{background:linear-gradient(180deg,var(--bg2),rgba(22,27,34,.4));border:1px solid var(--border);border-radius:12px;padding:20px 22px;margin-bottom:16px}
+.intro h2{font-size:19px;font-weight:700;margin-bottom:8px;letter-spacing:-.2px}
+.intro p{color:#c9d1d9;margin:8px 0;max-width:82ch}
+.intro .big{font-size:14.5px}
+.flowmini{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:14px 0 4px;font-size:12px}
+.chip{background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:6px 11px;color:var(--text)}
+.chip b{color:var(--accent)}
+.arrow{color:var(--muted)}
+.tri{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:14px}
+@media(max-width:760px){.tri{grid-template-columns:1fr}}
+.tri .box{background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:12px 14px}
+.tri .n{display:inline-flex;width:20px;height:20px;border-radius:50%;background:var(--accent);color:#04252a;font-weight:700;align-items:center;justify-content:center;font-size:11px;margin-right:6px}
+.tri h3{font-size:13px;display:flex;align-items:center;margin-bottom:5px}
+.tri p{font-size:12px;color:var(--muted);margin:0;max-width:none}
+details.more{margin-top:12px;font-size:12.5px;color:var(--muted)}
+details.more summary{cursor:pointer;color:var(--accent);font-weight:600}
+details.more ul{margin:8px 0 0 20px}details.more li{margin:3px 0}
+
+.deck{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-bottom:10px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
 button{font-family:inherit;font-size:12px;font-weight:600;color:var(--text);background:var(--surface);border:1px solid var(--border);padding:7px 13px;border-radius:7px;cursor:pointer;transition:all .15s;display:inline-flex;gap:6px;align-items:center}
 button:hover{background:var(--bg3);border-color:#444c56}
 button.primary{background:var(--accent);color:#04252a;border-color:var(--accent)}
-button.primary:hover{filter:brightness(1.08)}
 .ctl{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:11px}
 .ctl label{text-transform:uppercase;letter-spacing:.5px}
-input[type=range]{-webkit-appearance:none;appearance:none;height:4px;background:var(--border);border-radius:3px;width:96px;cursor:pointer}
+input[type=range]{-webkit-appearance:none;appearance:none;height:4px;background:var(--border);border-radius:3px;width:90px;cursor:pointer}
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:var(--accent);cursor:pointer}
-.narrate{margin-left:auto;font-size:11px;color:var(--muted);max-width:360px;text-align:right}
-.hint{font-size:11px;color:var(--muted);margin:-8px 0 14px}
+/* Narration */
+.narrate{background:var(--bg3);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:8px;padding:9px 14px;margin-bottom:16px;font-size:12.5px;color:#c9d1d9;min-height:38px;display:flex;align-items:center;gap:8px}
+.narrate .tag{color:var(--accent);font-weight:700;flex-shrink:0}
+
 kbd{font-family:inherit;background:var(--surface);border:1px solid var(--border);border-bottom-width:2px;border-radius:5px;padding:1px 6px;font-size:11px;color:var(--text)}
 /* Cockpit */
 .grid{display:grid;grid-template-columns:280px 1fr;gap:14px;align-items:start}
 @media(max-width:840px){.grid{grid-template-columns:1fr}}
 .panel{background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden}
-.phead{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px}
+.phead{padding:10px 14px;border-bottom:1px solid var(--border)}
+.phead .row{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .phead h2{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px}
+.phead .cap{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.4}
 .sessions{list-style:none}
-.sessions li{padding:11px 14px;border-top:1px solid var(--border);cursor:pointer}
+.sessions li{padding:11px 14px;border-top:1px solid var(--border)}
 .sessions li:first-child{border-top:none}
 .sessions li.sel{background:var(--bg3);box-shadow:inset 2px 0 0 var(--accent)}
 .sid{color:var(--cyan);font-weight:600}
@@ -52,7 +75,7 @@ kbd{font-family:inherit;background:var(--surface);border:1px solid var(--border)
 .tabs{display:flex;gap:6px}
 .tab{font-size:11px;font-weight:600;padding:5px 12px;border-radius:6px;cursor:pointer;background:var(--surface);border:1px solid var(--border);color:var(--muted)}
 .tab.active{background:rgba(57,197,207,.15);border-color:rgba(57,197,207,.4);color:var(--accent)}
-.body{padding:12px 14px;min-height:420px;max-height:560px;overflow-y:auto}
+.body{padding:12px 14px;min-height:430px;max-height:560px;overflow-y:auto}
 /* Steps */
 .step{display:grid;grid-template-columns:64px 52px 1fr auto;gap:8px;padding:4px 0;border-top:1px solid rgba(48,54,61,.5);font-size:12px;animation:slide .3s ease}
 .step:first-child{border-top:none}
@@ -62,9 +85,12 @@ kbd{font-family:inherit;background:var(--surface);border:1px solid var(--border)
 .step .cmd{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .g-yes{color:var(--green)}.g-no{color:var(--muted)}
 .step.gov .cmd{color:var(--text)}
+.pill-plan{font-size:9.5px;background:rgba(57,197,207,.15);color:var(--accent);border-radius:9px;padding:0 6px;margin-left:6px}
 /* Decisions */
 .dtask{color:var(--accent);font-weight:600;margin-bottom:2px}
-.dsub{font-size:11px;color:var(--muted);margin-bottom:12px}
+.dsub{font-size:11px;color:var(--muted);margin-bottom:6px}
+.dexplain{font-size:11.5px;color:var(--muted);background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:8px 11px;margin-bottom:12px}
+.gh{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:2px 0 6px}
 .gate{display:grid;grid-template-columns:120px 1fr 44px;gap:8px;align-items:center;padding:2px 0;font-size:11.5px}
 .gate .gn{color:var(--muted)}
 .gate.drop .gn{color:var(--yellow)}
@@ -73,7 +99,7 @@ kbd{font-family:inherit;background:var(--surface);border:1px solid var(--border)
 .gate.drop .bar>i{background:var(--yellow)}
 .gc{color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
 .units{margin-top:14px;border-top:1px solid var(--border);padding-top:10px}
-.unit{padding:3px 0;font-size:12px}
+.unit{padding:4px 0;font-size:12px}
 .unit .mk{font-weight:700}
 .unit.sel .mk{color:var(--green)}
 .unit.skip .mk{color:var(--red)}
@@ -82,7 +108,7 @@ kbd{font-family:inherit;background:var(--surface);border:1px solid var(--border)
 .unit .why{color:var(--muted);font-size:11px}
 .unit .sc{color:var(--muted);font-size:11px}
 .empty{color:var(--muted);padding:20px 4px}
-footer{margin-top:26px;text-align:center;color:var(--muted);font-size:11px;line-height:1.8}
+footer{margin-top:26px;text-align:center;color:var(--muted);font-size:11px;line-height:1.9}
 .legend{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-top:6px}
 </style>
 </head>
@@ -91,106 +117,126 @@ footer{margin-top:26px;text-align:center;color:var(--muted);font-size:11px;line-
   <header>
     <h1>KCP Dashboard</h1>
     <span class="badge brand">Thought Graph</span>
-    <span class="badge sim">Simulated</span>
+    <span class="badge sim">Simulated · runs in your browser</span>
     <span class="live" id="live"><span class="dot"></span><span id="livelabel">Live</span></span>
   </header>
+
+  <!-- Plain-language explainer -->
+  <div class="intro">
+    <h2>What am I looking at?</h2>
+    <p class="big">An AI agent is doing a job — say, resolving an outage. To do it well it needs the <em>right</em> internal documents, but you don't want it quietly pulling in <em>anything</em>: stale runbooks, restricted files, paid feeds, or 50 pages that blow the budget.</p>
+    <p><b>KCP (Knowledge Context Protocol)</b> sits between the agent and your knowledge and checks every candidate document against a fixed list of rules — called <b>gates</b> — before the agent is allowed to read it. This page lets you watch that happen, live.</p>
+
+    <div class="flowmini">
+      <span class="chip">🤖 <b>Agent</b> needs knowledge</span><span class="arrow">→</span>
+      <span class="chip">🚦 <b>KCP</b> runs the gates</span><span class="arrow">→</span>
+      <span class="chip">✅ only what passes reaches the agent</span><span class="arrow">→</span>
+      <span class="chip">📊 you see <b>what</b> &amp; <b>why</b></span>
+    </div>
+
+    <div class="tri">
+      <div class="box"><h3><span class="n">1</span> Sessions</h3><p>Each row on the left is one agent working on one task. The top one is “live”.</p></div>
+      <div class="box"><h3><span class="n">2</span> Steps</h3><p>The <b>Steps</b> tab is <em>what</em> the agent did — its actions in order. A ✓ means KCP guided that action.</p></div>
+      <div class="box"><h3><span class="n">3</span> Decisions</h3><p>The <b>Decisions</b> tab is <em>why</em> — for each task, which documents were allowed in and which were blocked, and by which rule.</p></div>
+    </div>
+
+    <details class="more">
+      <summary>Why does this matter? (30-second version)</summary>
+      <ul>
+        <li><b>Cost</b> — every document an agent reads costs tokens (money). KCP caps it and shows you where the budget went.</li>
+        <li><b>Safety</b> — least privilege for knowledge: restricted or out-of-date material is blocked <em>before</em> the agent sees it, not after.</li>
+        <li><b>Auditability</b> — every decision is deterministic and recorded, so you can answer “why did the agent use <em>that</em>?” months later.</li>
+        <li><b>Trust</b> — this isn’t a guess at the model’s hidden “reasoning”; it’s the actual, repeatable rule check. Same inputs → same decision, every time.</li>
+      </ul>
+    </details>
+  </div>
 
   <div class="deck">
     <button class="primary" id="play">⏸ Pause</button>
     <div class="ctl"><label>Speed</label><input type="range" id="speed" min="1" max="6" value="3"><span id="spd" style="color:var(--text)">1.5×</span></div>
     <button id="newtask">↻ New task</button>
-    <div class="narrate" id="narrate">An agent is resolving an incident. Watch KCP govern which knowledge it may load.</div>
+    <button id="gotodec">👉 Show me a decision</button>
+    <span style="margin-left:auto;font-size:11px;color:var(--muted)">Mirrors the real TUI — <kbd>s</kbd> sessions · <kbd>g</kbd> steps⇄decisions · <kbd>j</kbd>/<kbd>k</kbd> move</span>
   </div>
-  <div class="hint">This mirrors the real TUI: <kbd>s</kbd> browse sessions · <kbd>g</kbd> toggle Steps ⇄ Decisions · <kbd>j</kbd>/<kbd>k</kbd> move. Here, use the buttons.</div>
+
+  <div class="narrate" id="narrate"><span class="tag">▶</span><span id="narratetext">Starting a simulated agent session…</span></div>
 
   <div class="grid">
     <div class="panel">
-      <div class="phead"><h2>Active Sessions</h2><span class="dot" title="live"></span></div>
+      <div class="phead"><div class="row"><h2>Active Sessions</h2><span class="dot" title="live"></span></div>
+        <div class="cap">One agent, one task per row.</div></div>
       <ul class="sessions" id="sessions"></ul>
     </div>
     <div class="panel">
       <div class="phead">
-        <div class="tabs">
-          <button class="tab active" data-pane="steps" id="tab-steps">Steps</button>
-          <button class="tab" data-pane="decisions" id="tab-dec">Decisions</button>
+        <div class="row">
+          <div class="tabs">
+            <button class="tab active" data-pane="steps" id="tab-steps">Steps</button>
+            <button class="tab" data-pane="decisions" id="tab-dec">Decisions</button>
+          </div>
+          <span id="paneinfo" style="font-size:11px;color:var(--muted)"></span>
         </div>
-        <span id="paneinfo" style="font-size:11px;color:var(--muted)"></span>
+        <div class="cap" id="panecap">What the agent did, newest first. ✓ = this action was guided by KCP.</div>
       </div>
       <div class="body" id="body"></div>
     </div>
   </div>
 
   <footer>
-    Synthetic traffic generated in your browser — no backend. In production the flow is real:
-    <br><b>kcp-harness</b> governs a call → <b>kcp_trace</b> → content-free trace → <code>POST /trace</code> → <b>kcp-dashboard</b> renders this.
+    Synthetic traffic, generated in your browser — no backend. In production the flow is real:
+    <br><b>kcp-harness</b> governs a call → sends a content-free <b>decision trace</b> → <b>kcp-dashboard</b> renders exactly this.
     <div class="legend">
-      <span><span class="g-yes">✓</span> selected (score)</span>
-      <span><span style="color:var(--red)">✗</span> skipped — rejecting gate</span>
-      <span><a href="index.html">← Back to the guide</a></span>
+      <span><span class="g-yes">✓</span> allowed in (with a relevance score)</span>
+      <span><span style="color:var(--red)">✗</span> blocked — and the plain reason why</span>
+      <span><a href="index.html">← Full guide</a></span>
     </div>
   </footer>
 </div>
 
 <script>
 "use strict";
-// ---- The 13-gate cascade (kcp-agent order) --------------------------------
-const GATES = ["audience","not_for","temporal","deprecated","supersession","relevance","attestation","payment","access","strict","max_units","money_budget","context_budget"];
-const MAX_UNITS = 5;
+// ---- The 13-gate cascade (kcp-agent order) + plain-English meanings --------
+const GATES=["audience","not_for","temporal","deprecated","supersession","relevance","attestation","payment","access","strict","max_units","money_budget","context_budget"];
+const GATE_PLAIN={
+  audience:"not written for AI agents", not_for:"explicitly excluded for this use",
+  temporal:"out of date", deprecated:"deprecated", supersession:"replaced by a newer doc",
+  relevance:"not relevant to the task", attestation:"needs an attestation the agent lacks",
+  payment:"costs money to read (not paid)", access:"restricted — not permitted",
+  strict:"dropped in strict mode", max_units:"context budget full — only the top few are kept",
+  money_budget:"over the money budget", context_budget:"over the token budget",
+};
+const MAX_UNITS=5;
 
-// Knowledge units for a simulated "kb://acme-eng" manifest. Props drive the cascade.
-function manifest(){
-  return [
-    {id:"oncall-runbook",   path:"docs/runbooks/oncall.md",     score:0.86, temporal:"ok",        pay:"free", access:"public",     attest:false, deprecated:false, audience:true},
-    {id:"escalation-policy",path:"policies/escalation.md",      score:0.71, temporal:"ok",        pay:"free", access:"public",     attest:false, deprecated:false, audience:true},
-    {id:"incident-comms",   path:"docs/incident-comms.md",      score:0.64, temporal:"ok",        pay:"free", access:"public",     attest:false, deprecated:false, audience:true},
-    {id:"sla-matrix",       path:"docs/sla-matrix.md",          score:0.58, temporal:"ok",        pay:"free", access:"public",     attest:false, deprecated:false, audience:true},
-    {id:"threat-model",     path:"kb/security/threat-model.md", score:0.55, temporal:"ok",        pay:"free", access:"public",     attest:false, deprecated:false, audience:true},
-    {id:"pci-scope",        path:"policies/pci-scope.md",       score:0.40, temporal:"superseded",pay:"free", access:"public",     attest:false, deprecated:false, audience:true},
-    {id:"vendor-intel",     path:"kb/threat-intel/feed.md",     score:0.62, temporal:"ok",        pay:"paid", access:"public",     attest:false, deprecated:false, audience:true},
-    {id:"prod-secrets",     path:"ops/secrets.md",              score:0.50, temporal:"ok",        pay:"free", access:"restricted", attest:false, deprecated:false, audience:true},
-    {id:"legacy-auth",      path:"docs/legacy/auth.md",         score:0.33, temporal:"ok",        pay:"free", access:"public",     attest:false, deprecated:true,  audience:true},
-    {id:"marketing-deck",   path:"marketing/pitch.md",          score:0.05, temporal:"ok",        pay:"free", access:"public",     attest:false, deprecated:false, audience:false},
-  ];
-}
+function manifest(){return[
+  {id:"oncall-runbook",   path:"docs/runbooks/oncall.md",     score:0.86,temporal:"ok",        pay:"free",access:"public",    attest:false,deprecated:false,audience:true},
+  {id:"escalation-policy",path:"policies/escalation.md",      score:0.71,temporal:"ok",        pay:"free",access:"public",    attest:false,deprecated:false,audience:true},
+  {id:"incident-comms",   path:"docs/incident-comms.md",      score:0.64,temporal:"ok",        pay:"free",access:"public",    attest:false,deprecated:false,audience:true},
+  {id:"sla-matrix",       path:"docs/sla-matrix.md",          score:0.58,temporal:"ok",        pay:"free",access:"public",    attest:false,deprecated:false,audience:true},
+  {id:"threat-model",     path:"kb/security/threat-model.md", score:0.55,temporal:"ok",        pay:"free",access:"public",    attest:false,deprecated:false,audience:true},
+  {id:"pci-scope",        path:"policies/pci-scope.md",       score:0.40,temporal:"superseded",pay:"free",access:"public",    attest:false,deprecated:false,audience:true},
+  {id:"vendor-intel",     path:"kb/threat-intel/feed.md",     score:0.62,temporal:"ok",        pay:"paid",access:"public",    attest:false,deprecated:false,audience:true},
+  {id:"prod-secrets",     path:"ops/secrets.md",              score:0.50,temporal:"ok",        pay:"free",access:"restricted",attest:false,deprecated:false,audience:true},
+  {id:"legacy-auth",      path:"docs/legacy/auth.md",         score:0.33,temporal:"ok",        pay:"free",access:"public",    attest:false,deprecated:true, audience:true},
+  {id:"marketing-deck",   path:"marketing/pitch.md",          score:0.05,temporal:"ok",        pay:"free",access:"public",    attest:false,deprecated:false,audience:false},
+];}
 
-// Evaluate one unit through the cascade; return {gates:[{gate,pass}], rejectedBy}
 function evalUnit(u){
-  const verdicts=[];
-  const checks={
-    audience:u.audience, not_for:true, temporal:u.temporal==="ok", deprecated:!u.deprecated,
-    supersession:u.temporal!=="superseded", relevance:u.score>0.1, attestation:!u.attest,
-    payment:u.pay==="free", access:u.access==="public", strict:true,
-    max_units:true, money_budget:true, context_budget:true,
-  };
-  for(const g of GATES){
-    const pass=checks[g];
-    verdicts.push({gate:g,pass});
-    if(!pass) return {gates:verdicts, rejectedBy:g};
-  }
-  return {gates:verdicts, rejectedBy:null};
+  const v=[];
+  const c={audience:u.audience,not_for:true,temporal:u.temporal==="ok",deprecated:!u.deprecated,
+    supersession:u.temporal!=="superseded",relevance:u.score>0.1,attestation:!u.attest,
+    payment:u.pay==="free",access:u.access==="public",strict:true,max_units:true,money_budget:true,context_budget:true};
+  for(const g of GATES){v.push({gate:g,pass:c[g]});if(!c[g])return{gates:v,rejectedBy:g};}
+  return{gates:v,rejectedBy:null};
 }
-
-// Build a full DecisionTrace for a task over the manifest.
 function computeTrace(task){
-  const units=manifest().map(u=>({u, ...evalUnit(u)}));
-  // Units surviving to max_units: rank by score, cap at MAX_UNITS.
+  const units=manifest().map(u=>({u,...evalUnit(u)}));
   const survivors=units.filter(x=>x.rejectedBy===null).sort((a,b)=>b.u.score-a.u.score);
-  survivors.forEach((x,i)=>{ if(i>=MAX_UNITS){ x.rejectedBy="max_units"; x.gates.push({gate:"max_units",pass:false}); }});
-  // gate summary: at each gate, count evaluated → passed/failed
+  survivors.forEach((x,i)=>{if(i>=MAX_UNITS){x.rejectedBy="max_units";x.gates.push({gate:"max_units",pass:false});}});
   const summary=GATES.map(g=>({gate:g,passed:0,failed:0}));
-  for(const x of units){
-    for(const v of x.gates){
-      const s=summary.find(s=>s.gate===v.gate);
-      if(v.pass) s.passed++; else s.failed++;
-    }
-  }
-  const out=units.map(x=>({
-    id:x.u.id, path:x.u.path, score:x.u.score,
-    outcome:x.rejectedBy===null?"selected":"skipped",
-    rejectedBy:x.rejectedBy,
-  }));
+  for(const x of units)for(const v of x.gates){const s=summary.find(s=>s.gate===v.gate);if(v.pass)s.passed++;else s.failed++;}
+  const out=units.map(x=>({id:x.u.id,path:x.u.path,score:x.u.score,outcome:x.rejectedBy===null?"selected":"skipped",rejectedBy:x.rejectedBy}));
   const selected=out.filter(u=>u.outcome==="selected").length;
-  return {task, asOf:"2026-07-14", selected, skipped:out.length-selected, gateSummary:summary.filter(s=>s.passed+s.failed>0), units:out};
+  return{task,asOf:"2026-07-14",selected,skipped:out.length-selected,gateSummary:summary.filter(s=>s.passed+s.failed>0),units:out};
 }
 
 // ---- Simulated session ----------------------------------------------------
@@ -202,56 +248,50 @@ const TASKS=[
 ];
 const TOOLS=["Read","Grep","Bash","Edit","WebFetch"];
 const CMDS={Read:"docs/runbooks/oncall.md",Grep:"\"5xx\" src/",Bash:"kubectl logs -n prod checkout",Edit:"src/checkout/retry.ts",WebFetch:"https://status.acme.io"};
-
 let taskIdx=0;
-const state={ steps:[], trace:null, turns:0, sessionId:hex(8), agent:"claude-opus-4-8" };
-let pane="steps", running=true, speed=1.5, tick=0;
+const state={steps:[],trace:null,turns:0,sessionId:hex(8),agent:"claude-opus-4-8",task:""};
+let pane="steps",running=true,speed=1.5;
 
 function hex(n){let s="";for(let i=0;i<n;i++)s+="0123456789abcdef"[Math.floor(Math.random()*16)];return s;}
 const $=id=>document.getElementById(id);
-
-function newTask(){
-  state.steps=[]; state.trace=null; state.turns=0; state.sessionId=hex(8);
-  const t=TASKS[taskIdx%TASKS.length]; taskIdx++;
-  state.task=t;
-  $("narrate").textContent="Task: "+t;
-  // seed a planning decision immediately
-  planNow();
-  renderSessions(); render();
-}
-function planNow(){
-  state.trace=computeTrace("access "+ (state.task||TASKS[0]));
-  pushStep("kcp_plan", "plan \""+shorten(state.task,28)+"\"", true, true);
-}
+function narrate(msg){$("narratetext").textContent=msg;}
 function shorten(s,n){return s.length>n?s.slice(0,n-1)+"…":s;}
-
-function pushStep(tool,cmd,governed,isPlan){
-  state.turns++;
-  const d=new Date();
-  state.steps.unshift({ ts:pad(d.getHours())+":"+pad(d.getMinutes())+":"+pad(d.getSeconds()),
-    tool, cmd, governed, guided:governed, plan:!!isPlan });
-  if(state.steps.length>60) state.steps.pop();
-}
 const pad=n=>String(n).padStart(2,"0");
 
+function newTask(){
+  state.steps=[];state.trace=null;state.turns=0;state.sessionId=hex(8);
+  state.task=TASKS[taskIdx%TASKS.length];taskIdx++;
+  narrate('New task: "'+state.task+'". The agent starts working; KCP will vet the knowledge it reaches for.');
+  planNow(true);
+  renderSessions();render();
+}
+function planNow(quiet){
+  state.trace=computeTrace("access "+state.task);
+  pushStep("kcp_plan","plan \""+shorten(state.task,26)+"\"",true,true);
+  if(!quiet) narrateDecision();
+}
+function narrateDecision(){
+  const t=state.trace;if(!t)return;
+  const skips=t.units.filter(u=>u.outcome==="skipped");
+  const bits=skips.slice(0,2).map(u=>u.id+" ("+GATE_PLAIN[u.rejectedBy]+")");
+  const extra=skips.length>2?", and "+(skips.length-2)+" more":"";
+  narrate("KCP checked "+t.units.length+" documents for this task and let in "+t.selected+". Blocked: "+ (bits.join("; ")||"none") +extra+". Open the Decisions tab to see every gate.");
+}
+function pushStep(tool,cmd,governed,isPlan){
+  state.turns++;const d=new Date();
+  state.steps.unshift({ts:pad(d.getHours())+":"+pad(d.getMinutes())+":"+pad(d.getSeconds()),tool,cmd,governed,plan:!!isPlan});
+  if(state.steps.length>60)state.steps.pop();
+}
 function step(){
-  if(!running) return;
-  // ~1 in 6 steps triggers a fresh governance decision (kcp_plan)
-  if(Math.random()<0.16){ planNow(); }
-  else{
-    const tool=TOOLS[Math.floor(Math.random()*TOOLS.length)];
-    const governed=Math.random()<0.5;
-    pushStep(tool, CMDS[tool], governed, false);
-  }
-  renderSessions(); render();
+  if(!running)return;
+  if(Math.random()<0.16){planNow(false);}
+  else{const tool=TOOLS[Math.floor(Math.random()*TOOLS.length)];pushStep(tool,CMDS[tool],Math.random()<0.5,false);}
+  renderSessions();render();
 }
 
 // ---- Render ----------------------------------------------------------------
 function renderSessions(){
-  const others=[
-    {id:"7f054f27",agent:"claude-sonnet-5",task:"add dashboard panel",n:44},
-    {id:"3a3c88ac",agent:"claude-opus-4-8",task:"triage flaky test",n:16},
-  ];
+  const others=[{id:"7f054f27",agent:"claude-sonnet-5",task:"add dashboard panel",n:44},{id:"3a3c88ac",agent:"claude-opus-4-8",task:"triage flaky test",n:16}];
   const live=`<li class="sel"><span class="sid">${state.sessionId}</span> <span style="color:var(--green);font-size:10px">● live</span>
     <div class="smeta"><span><b>${state.turns}</b> steps</span><span>${state.agent}</span></div>
     <div class="smeta">${shorten(state.task||"",30)}</div></li>`;
@@ -259,54 +299,59 @@ function renderSessions(){
     <div class="smeta"><span><b>${o.n}</b> steps</span><span>${o.agent}</span></div>
     <div class="smeta">${o.task}</div></li>`).join("");
 }
-
 function render(){
+  $("panecap").textContent = pane==="steps"
+    ? "What the agent did, newest first. ✓ = this action was guided by KCP."
+    : "Why the agent got the knowledge it did. Each row is a candidate document; the bars show how many survived each rule.";
   $("paneinfo").textContent = state.trace ? (pane==="decisions"
-    ? state.trace.selected+" selected / "+state.trace.skipped+" skipped"
+    ? state.trace.selected+" allowed · "+state.trace.skipped+" blocked"
     : state.turns+" steps") : "";
   $("body").innerHTML = pane==="steps" ? renderSteps() : renderDecisions();
 }
-
 function renderSteps(){
-  if(!state.steps.length) return '<div class="empty">Waiting for the agent…</div>';
+  if(!state.steps.length)return '<div class="empty">Waiting for the agent…</div>';
   return state.steps.map(s=>{
-    const mk = s.governed ? '<span class="g-yes">✓</span>' : '<span class="g-no">·</span>';
-    return `<div class="step ${s.governed?'gov':''}"><span class="t">${s.ts}</span><span class="tool">${s.tool}</span><span class="cmd">${s.cmd}</span>${mk}</div>`;
+    const mk=s.governed?'<span class="g-yes" title="KCP guided this call">✓</span>':'<span class="g-no" title="ungoverned — not knowledge access">·</span>';
+    const plan=s.plan?'<span class="pill-plan">planned knowledge</span>':'';
+    return `<div class="step ${s.governed?'gov':''}"><span class="t">${s.ts}</span><span class="tool">${s.tool}</span><span class="cmd">${s.cmd}${plan}</span>${mk}</div>`;
   }).join("");
 }
-
 function renderDecisions(){
   const t=state.trace;
-  if(!t) return '<div class="empty">No decision yet — the agent hasn\'t planned against a governed domain.</div>';
-  const maxTotal=Math.max(...t.gateSummary.map(g=>g.passed+g.failed),1);
+  if(!t)return '<div class="empty">No decision yet — the agent hasn\'t reached for governed knowledge. Click “Show me a decision”.</div>';
   const funnel=t.gateSummary.map(g=>{
-    const total=g.passed+g.failed, rate=total?g.passed/total:0, drop=g.failed>0;
-    return `<div class="gate ${drop?'drop':''}"><span class="gn">${g.gate}</span>
+    const total=g.passed+g.failed,rate=total?g.passed/total:0,drop=g.failed>0;
+    const title=GATE_PLAIN[g.gate]?("gate: "+GATE_PLAIN[g.gate]):g.gate;
+    return `<div class="gate ${drop?'drop':''}" title="${title}"><span class="gn">${g.gate}</span>
       <span class="bar"><i style="width:${Math.round(rate*100)}%"></i></span>
       <span class="gc">${g.passed}/${total}</span></div>`;
   }).join("");
   const units=t.units.map(u=>{
-    if(u.outcome==="selected") return `<div class="unit sel"><span class="mk">✓</span> <span class="uid">${u.id}</span> <span class="sc">(${u.score.toFixed(2)})</span></div>`;
-    return `<div class="unit skip"><span class="mk">✗</span> <span class="uid">${u.id}</span> <span class="why">— skipped at <b style="color:var(--yellow)">${u.rejectedBy}</b></span></div>`;
+    if(u.outcome==="selected")return `<div class="unit sel"><span class="mk">✓</span> <span class="uid">${u.id}</span> <span class="sc">— allowed in · relevance ${u.score.toFixed(2)}</span></div>`;
+    return `<div class="unit skip"><span class="mk">✗</span> <span class="uid">${u.id}</span> <span class="why">— blocked: ${GATE_PLAIN[u.rejectedBy]} <b style="color:var(--yellow)">(${u.rejectedBy})</b></span></div>`;
   }).join("");
   return `<div class="dtask">${t.task}</div>
-    <div class="dsub">manifest kb://acme-eng · as-of ${t.asOf} · 13-gate cascade</div>
-    ${funnel}<div class="units">${units}</div>`;
+    <div class="dsub">manifest kb://acme-eng · a fixed 13-rule check runs on every candidate document</div>
+    <div class="dexplain">Read this top-down: each document is tested against the rules in order and <b>stops at the first one it fails</b>. The bars show how many documents each rule passed — you can see exactly where candidates drop out.</div>
+    <div class="gh">The gate funnel — how many documents survived each rule</div>
+    ${funnel}
+    <div class="units"><div class="gh">The verdict per document</div>${units}</div>`;
 }
 
 // ---- Controls --------------------------------------------------------------
-function setPane(p){ pane=p; $("tab-steps").classList.toggle("active",p==="steps"); $("tab-dec").classList.toggle("active",p==="decisions"); render(); }
+function setPane(p){pane=p;$("tab-steps").classList.toggle("active",p==="steps");$("tab-dec").classList.toggle("active",p==="decisions");render();}
 $("tab-steps").onclick=()=>setPane("steps");
 $("tab-dec").onclick=()=>setPane("decisions");
-$("play").onclick=()=>{ running=!running; $("play").textContent=running?"⏸ Pause":"▶ Resume"; $("play").classList.toggle("primary",running); $("live").classList.toggle("paused",!running); $("livelabel").textContent=running?"Live":"Paused"; };
+$("gotodec").onclick=()=>{ if(!state.trace) planNow(true); setPane("decisions"); narrateDecision(); };
+$("play").onclick=()=>{running=!running;$("play").textContent=running?"⏸ Pause":"▶ Resume";$("play").classList.toggle("primary",running);$("live").classList.toggle("paused",!running);$("livelabel").textContent=running?"Live":"Paused";};
 const spdMap={1:0.5,2:1,3:1.5,4:2,5:3,6:4};
-$("speed").oninput=e=>{ speed=spdMap[e.target.value]; $("spd").textContent=speed+"×"; };
+$("speed").oninput=e=>{speed=spdMap[e.target.value];$("spd").textContent=speed+"×";};
 $("newtask").onclick=newTask;
-document.addEventListener("keydown",e=>{ if(e.key==="g"||e.key==="G") setPane(pane==="steps"?"decisions":"steps"); });
+document.addEventListener("keydown",e=>{if(e.key==="g"||e.key==="G")setPane(pane==="steps"?"decisions":"steps");});
 
 // ---- Boot ------------------------------------------------------------------
-function loop(){ step(); setTimeout(loop, 900/speed); }
-newTask(); loop();
+function loop(){step();setTimeout(loop,900/speed);}
+newTask();loop();
 </script>
 </body>
 </html>
