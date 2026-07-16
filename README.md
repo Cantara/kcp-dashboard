@@ -4,6 +4,19 @@ Live terminal dashboard for [KCP (Knowledge Context Protocol)](https://github.co
 
 Built with [Bubble Tea](https://github.com/charmbracelet/bubbletea) + [Lip Gloss](https://github.com/charmbracelet/lipgloss). Auto-refreshes every 2 seconds.
 
+## 🌐 Live guide & interactive demo
+
+**[cantara.github.io/kcp-dashboard](https://cantara.github.io/kcp-dashboard/)** — a plain-language guide to the **agent thought graph**, plus an **[interactive, in-browser demo](https://cantara.github.io/kcp-dashboard/demo.html)** (no install).
+
+The demo simulates an agent session and lets you flip between:
+
+- **Steps** — *what* the agent did (its tool calls, in order), and
+- **Decisions** — *why* KCP let it load the knowledge it did: `task → 13-gate cascade → ✓ selected / ✗ blocked-at-<gate>`.
+
+Pick a real-world scenario — **Customer Support**, **Incident Response**, **Codebase Copilot**, **Financial Compliance**, or **Clinical Summary** — across Starter → Standard → Advanced complexity, and watch which documents pass each rule.
+
+> The showcase lives in [`site/`](site/) and deploys via GitHub Actions on every push to `main`.
+
 ## Panels
 
 ### Overview (pinned)
