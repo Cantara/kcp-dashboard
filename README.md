@@ -1,5 +1,8 @@
 # kcp-dashboard
 
+### 🧾 See it run — [interactive KCP playground](https://cantara.github.io/pi-kcp/playground/) · [read the reveal](https://wiki.totto.org/blog/2026/07/22/the-ai-agent-that-keeps-the-receipts/)
+
+
 Live terminal dashboard for [KCP (Knowledge Context Protocol)](https://github.com/Cantara/knowledge-context-protocol) usage statistics.
 
 Built with [Bubble Tea](https://github.com/charmbracelet/bubbletea) + [Lip Gloss](https://github.com/charmbracelet/lipgloss). Auto-refreshes every 2 seconds.
