@@ -19,3 +19,15 @@ jobs:
           cache: true
       - run: go vet ./...
       - run: go test ./...
+
+      # The manifest is a shipped artifact and nothing here checked it. That is how
+      # two content_hash digests went stale against README.md and view.go unnoticed:
+      # signing does not catch it, because kcp render verifies the signature, not the
+      # declared hashes — a manifest with stale digests renders tier: known happily.
+      #
+      # Deliberately `validate`, not `sign --update-hashes`. A content_hash exists so
+      # a consumer can detect that content drifted from what was signed; a pipeline
+      # that silently recomputes it on every push launders the drift into a green
+      # build and can never detect anything.
+      - name: Validate knowledge.yaml
+        run: npx --yes @cantara.no/kcp@0.29 validate knowledge.yaml
