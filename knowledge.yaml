@@ -60,7 +60,7 @@ units:
       ]
     content_hash:
       algorithm: sha256
-      value: "3f76f4ec2c757175af1a56e382b65402e655ab21ef4b171af158ccd0149974c1"
+      value: "bbd9b040cfc8098d31f0ae7b85d0c50aa0dd795d10b102fbe07f69683dfa7e6c"
 
   - id: main
     path: main.go
@@ -85,7 +85,7 @@ units:
     triggers: [ view, render, panels, tui, bubble tea, layout, lip gloss ]
     content_hash:
       algorithm: sha256
-      value: "c6d1026e3ab669fb660189adc316f642d33f1f90c09a5258da615148c361b2d5"
+      value: "ca297aef25e2c42e64652b0d0f1f1af6e254ba746325ec986a301853d83b8521"
 
   - id: db
     path: db.go
