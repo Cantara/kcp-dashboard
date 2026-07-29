@@ -9,7 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-const version = "0.27.0"
+const version = "0.28.0"
 
 func main() {
 	// kcp-dashboard serve [-port N] — start hook daemon (no TUI)
