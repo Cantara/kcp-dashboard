@@ -99,9 +99,35 @@ func renderDecisions(traces []DecisionTraceRow, width int) string {
 				}
 				b.WriteString("    " + styleWarn.Render("✗ ") + styleDim.Render(u.UnitID+" — "+why) + "\n")
 			}
+			// RFC-0029: surface any action_scope.deny the unit carries, even when
+			// it was selected — deny overrides allow, fail-closed, so the operator
+			// must see the prohibition, not just the allow.
+			if line := renderDeny(u.Deny); line != "" {
+				b.WriteString(line + "\n")
+			}
 		}
 	}
 	return strings.TrimRight(b.String(), "\n")
+}
+
+// renderDeny renders a unit's action_scope.deny as a ⛔ prohibition line listing
+// the denied tokens per dimension (§4.3a, RFC-0029). Returns "" for a nil/empty
+// deny, which is a no-op and is not surfaced.
+func renderDeny(d *DenyScope) string {
+	if !d.nonEmpty() {
+		return ""
+	}
+	var parts []string
+	if len(d.Tools) > 0 {
+		parts = append(parts, "tools "+strings.Join(d.Tools, ", "))
+	}
+	if len(d.Paths) > 0 {
+		parts = append(parts, "paths "+strings.Join(d.Paths, ", "))
+	}
+	if len(d.Capabilities) > 0 {
+		parts = append(parts, "capabilities "+strings.Join(d.Capabilities, ", "))
+	}
+	return "      " + styleWarn.Render("⛔ deny ") + styleDim.Render(strings.Join(parts, "; "))
 }
 
 // renderSessionList renders the left column: one session per entry, the

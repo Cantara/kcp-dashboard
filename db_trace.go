@@ -13,6 +13,26 @@ type GateStat struct {
 	Failed int64  `json:"failed"`
 }
 
+// DenyScope is the explicit negative scope on a unit's action_scope
+// (§4.3a, v0.31, RFC-0029). Same {tools, paths, capabilities} shape as the
+// allowlist, but every entry is a PROHIBITION: a token listed here is refused
+// even when the allowlist grants it. Deny overrides allow, fail-closed. The
+// dashboard surfaces it so an operator sees prohibitions, not just allows.
+type DenyScope struct {
+	Tools        []string `json:"tools,omitempty"`        // tool names the procedure MUST NOT invoke
+	Paths        []string `json:"paths,omitempty"`        // paths (globs permitted) the procedure MUST NOT touch
+	Capabilities []string `json:"capabilities,omitempty"` // capabilities the procedure MUST NOT exercise
+}
+
+// nonEmpty reports whether the deny scope prohibits anything. An empty deny is a
+// no-op (§4.3a) and is not surfaced.
+func (d *DenyScope) nonEmpty() bool {
+	if d == nil {
+		return false
+	}
+	return len(d.Tools) > 0 || len(d.Paths) > 0 || len(d.Capabilities) > 0
+}
+
 // TraceUnitRow is one unit's verdict within a decision trace.
 type TraceUnitRow struct {
 	UnitID     string
@@ -20,7 +40,8 @@ type TraceUnitRow struct {
 	Outcome    string // "selected" | "skipped"
 	RejectedBy string // gate that rejected it ("" for selected)
 	Score      float64
-	GatesJSON  string // full cascade, for the detail view
+	GatesJSON  string     // full cascade, for the detail view
+	Deny       *DenyScope // §4.3a (RFC-0029) — prohibitions the unit carries; nil when none
 }
 
 // DecisionTraceRow is one governance decision: a task planned against a
@@ -91,16 +112,23 @@ func loadSessionTraces(usageDBPath, sessionID string) ([]DecisionTraceRow, error
 	for i := range out {
 		urows, err := db.Query(
 			`SELECT unit_id, COALESCE(path,''), outcome, COALESCE(rejected_by,''),
-			        COALESCE(score,0), COALESCE(gates_json,'[]')
+			        COALESCE(score,0), COALESCE(gates_json,'[]'), COALESCE(deny_json,'')
 			   FROM trace_units WHERE trace_id = ? ORDER BY id ASC`, out[i].ID)
 		if err != nil {
 			return nil, err
 		}
 		for urows.Next() {
 			var u TraceUnitRow
-			if err := urows.Scan(&u.UnitID, &u.Path, &u.Outcome, &u.RejectedBy, &u.Score, &u.GatesJSON); err != nil {
+			var denyJSON string
+			if err := urows.Scan(&u.UnitID, &u.Path, &u.Outcome, &u.RejectedBy, &u.Score, &u.GatesJSON, &denyJSON); err != nil {
 				urows.Close()
 				return nil, err
+			}
+			if denyJSON != "" {
+				var d DenyScope
+				if json.Unmarshal([]byte(denyJSON), &d) == nil && d.nonEmpty() {
+					u.Deny = &d
+				}
 			}
 			out[i].Units = append(out[i].Units, u)
 		}
