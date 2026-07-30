@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -43,8 +44,8 @@ type hookOutput struct {
 // ── Usage event writer ────────────────────────────────────────────────────────
 
 type usageWriter struct {
-	mu  sync.Mutex
-	db  *sql.DB
+	mu sync.Mutex
+	db *sql.DB
 }
 
 func newUsageWriter(dbPath string) (*usageWriter, error) {
@@ -139,6 +140,9 @@ func runServe(port int) {
 	})
 	mux.HandleFunc("/trace", func(w http.ResponseWriter, r *http.Request) {
 		handleTrace(w, r, usage)
+	})
+	mux.HandleFunc("/events", func(w http.ResponseWriter, r *http.Request) {
+		handleEvents(w, r, usage)
 	})
 
 	addr := fmt.Sprintf("localhost:%d", port)
@@ -262,6 +266,68 @@ func handleFilter(w http.ResponseWriter, r *http.Request, store *ManifestStore, 
 
 	filtered := applyOutputFilter(string(body), &manifest.OutputSchema)
 	fmt.Fprint(w, filtered)
+}
+
+// ── /events handler (browser-consumable read API) ────────────────────────────
+
+// defaultEventsLimit caps how many recent usage_events GET /events returns when
+// the caller does not specify ?limit. Kept modest so a static browser page can
+// poll cheaply.
+const defaultEventsLimit = 200
+
+// maxEventsLimit is the hard ceiling on ?limit, so a downstream consumer cannot
+// force an unbounded scan of usage.db.
+const maxEventsLimit = 2000
+
+// writeCORS sets permissive CORS headers so a static, credential-less browser
+// page (a downstream KCP consumer) can fetch the telemetry. The endpoint is
+// read-only, so a wildcard origin exposes no governance-write surface.
+func writeCORS(w http.ResponseWriter) {
+	h := w.Header()
+	h.Set("Access-Control-Allow-Origin", "*")
+	h.Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+	h.Set("Access-Control-Allow-Headers", "Content-Type")
+}
+
+// handleEvents serves recent usage_events from usage.db as JSON for browser
+// consumption. It is strictly read-only: OPTIONS answers the CORS preflight,
+// GET returns the rows, every other verb is rejected. An absent usage writer
+// degrades to an empty array rather than an error, mirroring the read-side
+// fail-soft behaviour of loadSessionTraces.
+func handleEvents(w http.ResponseWriter, r *http.Request, usage *usageWriter) {
+	writeCORS(w)
+
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	limit := defaultEventsLimit
+	if q := r.URL.Query().Get("limit"); q != "" {
+		if n, err := strconv.Atoi(q); err == nil && n > 0 {
+			limit = n
+		}
+	}
+	if limit > maxEventsLimit {
+		limit = maxEventsLimit
+	}
+
+	events := []usageEventRow{}
+	if usage != nil {
+		rows, err := usage.recentEvents(limit)
+		if err != nil {
+			http.Error(w, "read error", http.StatusInternalServerError)
+			return
+		}
+		events = rows
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(events)
 }
 
 // ── Phase B noise filtering ───────────────────────────────────────────────────
