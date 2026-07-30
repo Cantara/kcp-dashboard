@@ -32,6 +32,10 @@ type traceUnitInput struct {
 	RejectedBy string          `json:"rejected_by"`
 	Score      *float64        `json:"score"`
 	Gates      json.RawMessage `json:"gates"`
+	// Deny is the unit's action_scope.deny — explicit prohibitions that override
+	// the allowlist, fail-closed (§4.3a, v0.31, RFC-0029). Optional; nil when the
+	// unit carries no negative scope.
+	Deny *DenyScope `json:"deny"`
 }
 
 // createTraceTables ensures the decision-trace tables exist. Called from
@@ -53,7 +57,7 @@ func createTraceTables(db *sql.DB) error {
 	)`); err != nil {
 		return err
 	}
-	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS trace_units (
+	if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS trace_units (
 		id          INTEGER PRIMARY KEY AUTOINCREMENT,
 		trace_id    INTEGER NOT NULL,
 		unit_id     TEXT NOT NULL,
@@ -61,9 +65,38 @@ func createTraceTables(db *sql.DB) error {
 		outcome     TEXT NOT NULL,
 		rejected_by TEXT,
 		score       REAL,
-		gates_json  TEXT
-	)`)
-	return err
+		gates_json  TEXT,
+		deny_json   TEXT
+	)`); err != nil {
+		return err
+	}
+	// RFC-0029 (v0.31): add deny_json to trace_units created before the deny
+	// scope existed. Idempotent — skipped once the column is present.
+	if !columnExists(db, "trace_units", "deny_json") {
+		if _, err := db.Exec(`ALTER TABLE trace_units ADD COLUMN deny_json TEXT`); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// columnExists reports whether table has a column named col.
+func columnExists(db *sql.DB, table, col string) bool {
+	rows, err := db.Query(`SELECT name FROM pragma_table_info(?)`, table)
+	if err != nil {
+		return false
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return false
+		}
+		if name == col {
+			return true
+		}
+	}
+	return false
 }
 
 // writeTrace persists one decision trace + its unit rows. Idempotent per
@@ -101,10 +134,18 @@ func (u *usageWriter) writeTrace(ev traceEvent) error {
 		if len(gates) == 0 {
 			gates = json.RawMessage("[]")
 		}
+		// Persist a non-empty deny scope only; an absent/empty deny is a no-op
+		// (§4.3a) and stored as NULL so readers see "no prohibition".
+		var denyJSON any
+		if un.Deny.nonEmpty() {
+			if b, err := json.Marshal(un.Deny); err == nil {
+				denyJSON = string(b)
+			}
+		}
 		if _, err := u.db.Exec(
-			`INSERT INTO trace_units (trace_id, unit_id, path, outcome, rejected_by, score, gates_json)
-			 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-			traceID, un.ID, un.Path, un.Outcome, un.RejectedBy, score, string(gates)); err != nil {
+			`INSERT INTO trace_units (trace_id, unit_id, path, outcome, rejected_by, score, gates_json, deny_json)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			traceID, un.ID, un.Path, un.Outcome, un.RejectedBy, score, string(gates), denyJSON); err != nil {
 			return err
 		}
 	}
