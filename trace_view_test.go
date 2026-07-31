@@ -116,6 +116,126 @@ func TestRenderDecisions_DenyOnRefusal(t *testing.T) {
 	}
 }
 
+// TestRenderProhibitedAttempts covers the RFC-0030 render helper: each distinct
+// deny-hit is listed per playbook/step with its token, dimension and binding
+// source, repeated attempts surface as a ×N count (the governance signal), and
+// the section header carries the total. No attempts → nothing rendered.
+func TestRenderProhibitedAttempts(t *testing.T) {
+	if got := renderProhibitedAttempts(nil, 60); got != "" {
+		t.Errorf("no attempts should render nothing, got %q", got)
+	}
+	rows := []ProhibitedAttemptRow{
+		{Playbook: "pb-002-gdpr-sletting", Step: "slett", Token: "legal/hold/**",
+			Dimension: "paths", BindingSource: "playbook", Count: 3, LastTS: "2026-07-30T09:17:00Z"},
+		{Playbook: "pb-002-gdpr-sletting", Step: "slett", Token: "transfer_ownership",
+			Dimension: "tools", BindingSource: "both", Count: 1, LastTS: "2026-07-30T09:15:00Z"},
+	}
+	out := renderProhibitedAttempts(rows, 80)
+	for _, want := range []string{
+		"⛔", "4 prohibited attempts", // total across rows in the section header
+		"pb-002-gdpr-sletting", "slett",
+		"legal/hold/**", "paths", "playbook", "×3",
+		"transfer_ownership", "tools", "both",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("renderProhibitedAttempts missing %q:\n%s", want, out)
+		}
+	}
+}
+
+// TestRenderProhibitedAttempts_WirePath exercises the full RFC-0030 path:
+// prohibited-attempt events ingested via the real /trace handler, loaded back,
+// and rendered in the decisions pane alongside the decision traces.
+func TestRenderProhibitedAttempts_WirePath(t *testing.T) {
+	usagePath := createTestDBPair(t)
+	uw, err := newUsageWriter(usagePath)
+	if err != nil {
+		t.Fatalf("newUsageWriter: %v", err)
+	}
+	for _, ts := range []string{"2026-07-30T09:15:00Z", "2026-07-30T09:16:00Z"} {
+		body := `{"kind":"prohibited_attempt","session_id":"s1","ts":"` + ts + `",` +
+			`"playbook":"pb-002-gdpr-sletting","step":"slett",` +
+			`"token":"legal/hold/**","dimension":"paths","binding_source":"playbook"}`
+		rr := httptest.NewRecorder()
+		handleTrace(rr, httptest.NewRequest(http.MethodPost, "/trace", strings.NewReader(body)), uw)
+		if rr.Code != http.StatusNoContent {
+			t.Fatalf("ingest prohibited attempt: got %d", rr.Code)
+		}
+	}
+	uw.db.Close()
+
+	rows, err := loadSessionProhibitedAttempts(usagePath, "s1")
+	if err != nil {
+		t.Fatalf("loadSessionProhibitedAttempts: %v", err)
+	}
+	out := renderDecisionsPane(nil, rows, 80)
+	for _, want := range []string{"⛔", "2 prohibited attempts", "pb-002-gdpr-sletting", "slett", "legal/hold/**", "×2"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("decisions pane should surface prohibited attempts %q, got:\n%s", want, out)
+		}
+	}
+}
+
+// TestRenderDecisionsPane_ComposesBoth: the decisions pane shows the decision
+// traces first and the prohibited-attempts section after; with no attempts it
+// is exactly the decisions view.
+func TestRenderDecisionsPane_ComposesBoth(t *testing.T) {
+	traces := []DecisionTraceRow{{
+		Task:          "run task",
+		SelectedCount: 1,
+		Units:         []TraceUnitRow{{UnitID: "u-ok", Outcome: "selected", Score: 0.9}},
+	}}
+	attempts := []ProhibitedAttemptRow{
+		{Playbook: "pb-1", Step: "s1", Token: "Bash", Dimension: "tools",
+			BindingSource: "skill", Count: 1},
+	}
+	out := renderDecisionsPane(traces, attempts, 60)
+	for _, want := range []string{"run task", "u-ok", "⛔", "pb-1", "Bash"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("renderDecisionsPane missing %q:\n%s", want, out)
+		}
+	}
+	if got, want := renderDecisionsPane(traces, nil, 60), renderDecisions(traces, 60); got != want {
+		t.Errorf("no attempts: pane should equal plain decisions view\ngot:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+// TestUpdate_LoadsProhibitedAttempts: entering session mode loads the session's
+// prohibited attempts alongside its traces, so the decisions pane can show them.
+func TestUpdate_LoadsProhibitedAttempts(t *testing.T) {
+	usagePath := createTestDBPair(t)
+	dir := filepath.Dir(usagePath)
+	now := time.Now().UTC().Format("2006-01-02T15:04:05Z")
+	insertRichSession(t, dir, "s1", "/test", "claude-opus-4-8", "delete old records", now, 2, 2)
+
+	uw, err := newUsageWriter(usagePath)
+	if err != nil {
+		t.Fatalf("newUsageWriter: %v", err)
+	}
+	body := `{"kind":"prohibited_attempt","session_id":"s1","ts":"` + now + `",` +
+		`"playbook":"pb-002-gdpr-sletting","step":"slett",` +
+		`"token":"legal/hold/**","dimension":"paths","binding_source":"playbook"}`
+	rr := httptest.NewRecorder()
+	handleTrace(rr, httptest.NewRequest(http.MethodPost, "/trace", strings.NewReader(body)), uw)
+	if rr.Code != http.StatusNoContent {
+		t.Fatalf("ingest prohibited attempt: got %d", rr.Code)
+	}
+	uw.db.Close()
+
+	m := newModel(usagePath, 30, "")
+	tm, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("s")})
+	m = tm.(model)
+	if !m.sessionMode {
+		t.Fatal("expected sessionMode after 's'")
+	}
+	if len(m.prohibited) != 1 {
+		t.Fatalf("expected 1 prohibited attempt loaded on enter, got %d", len(m.prohibited))
+	}
+	if m.prohibited[0].Playbook != "pb-002-gdpr-sletting" {
+		t.Errorf("prohibited attempt wrong: %+v", m.prohibited[0])
+	}
+}
+
 func TestRenderDecisions_Empty(t *testing.T) {
 	out := renderDecisions(nil, 40)
 	if !strings.Contains(strings.ToLower(out), "no decision") {

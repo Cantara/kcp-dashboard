@@ -43,6 +43,16 @@ func loadTracesFor(dbPath string, sessions []SessionRow, sel int) []DecisionTrac
 	return traces
 }
 
+// loadProhibitedFor loads the prohibited attempts for the selected session
+// (empty if none).
+func loadProhibitedFor(dbPath string, sessions []SessionRow, sel int) []ProhibitedAttemptRow {
+	if sel < 0 || sel >= len(sessions) {
+		return nil
+	}
+	rows, _ := loadSessionProhibitedAttempts(dbPath, sessions[sel].SessionID)
+	return rows
+}
+
 // renderGateFunnel renders the 13-gate cascade for one trace: a bar per gate
 // showing how many candidate units it passed vs. total — where units drop out.
 func renderGateFunnel(gates []GateStat, width int) string {
@@ -130,6 +140,58 @@ func renderDeny(d *DenyScope) string {
 	return "      " + styleWarn.Render("⛔ deny ") + styleDim.Render(strings.Join(parts, "; "))
 }
 
+// renderProhibitedAttempts renders the session's deny-hits (§4.3b, v0.32,
+// RFC-0030) grouped per playbook/step: each distinct deny as a ⛔ line naming
+// the token, dimension and binding source, repeats as a ×N count — repeated
+// attempts to do forbidden things is the governance signal (misconfiguration,
+// compromise, or probing), so the count must be visible, not collapsed away.
+// Returns "" when there are no attempts.
+func renderProhibitedAttempts(rows []ProhibitedAttemptRow, width int) string {
+	if len(rows) == 0 {
+		return ""
+	}
+	var total int64
+	for _, pa := range rows {
+		total += pa.Count
+	}
+	var b strings.Builder
+	b.WriteString("  " + styleWarn.Render("⛔ ") +
+		styleValue.Render(fmt.Sprintf("%d prohibited attempt%s", total, plural(int(total)))) +
+		styleDim.Render(" · notify-only — a deny is never grantable") + "\n")
+	lastScope := "\x00" // sentinel: no scope header emitted yet
+	for _, pa := range rows {
+		scope := pa.Playbook
+		if pa.Step != "" {
+			scope += " / " + pa.Step
+		}
+		if scope == "" {
+			scope = "(outside any playbook)"
+		}
+		if scope != lastScope {
+			b.WriteString("    " + styleLabel.Render(truncate(scope, width-4)) + "\n")
+			lastScope = scope
+		}
+		line := "      " + styleWarn.Render("⛔ ") + pa.Token +
+			styleDim.Render(" ("+pa.Dimension+") — "+pa.BindingSource+" deny")
+		if pa.Count > 1 {
+			line += "  " + styleWarn.Render(fmt.Sprintf("×%d", pa.Count))
+		}
+		b.WriteString(line + "\n")
+	}
+	return strings.TrimRight(b.String(), "\n")
+}
+
+// renderDecisionsPane composes the decisions pane body: the decision traces,
+// then the session's prohibited attempts (RFC-0030). With no attempts it is
+// exactly the decisions view.
+func renderDecisionsPane(traces []DecisionTraceRow, attempts []ProhibitedAttemptRow, width int) string {
+	out := renderDecisions(traces, width)
+	if pa := renderProhibitedAttempts(attempts, width); pa != "" {
+		out += "\n\n" + pa
+	}
+	return out
+}
+
 // renderSessionList renders the left column: one session per entry, the
 // selected row marked with ▸.
 func renderSessionList(sessions []SessionRow, sel, width int) string {
@@ -210,7 +272,7 @@ func renderSessionBrowser(m model) string {
 	}
 	body := renderSteps(m.steps, rightW)
 	if m.showDecisions {
-		body = renderDecisions(m.traces, rightW)
+		body = renderDecisionsPane(m.traces, m.prohibited, rightW)
 	}
 	right := detail + "\n\n" + body
 

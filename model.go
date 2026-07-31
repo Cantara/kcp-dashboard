@@ -51,6 +51,7 @@ type model struct {
 	// Decision layer: right pane toggles between steps and decisions.
 	showDecisions bool
 	traces        []DecisionTraceRow
+	prohibited    []ProhibitedAttemptRow // RFC-0030 deny-hits for the selected session
 }
 
 // viewportContent returns what the scrollable viewport should show for the
@@ -204,7 +205,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.sessions, _ = loadRecentSessions(m.dbPath, m.days, m.project, 50)
 					m.sessionSel = 0
 					m.steps = loadStepsFor(m.dbPath, m.sessions, m.sessionSel)
-				m.traces = loadTracesFor(m.dbPath, m.sessions, m.sessionSel)
+					m.traces = loadTracesFor(m.dbPath, m.sessions, m.sessionSel)
+					m.prohibited = loadProhibitedFor(m.dbPath, m.sessions, m.sessionSel)
 				}
 				if m.vpReady {
 					m.vp.SetContent(m.viewportContent())
@@ -226,6 +228,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.sessionSel = clampIndex(m.sessionSel+1, len(m.sessions))
 				m.steps = loadStepsFor(m.dbPath, m.sessions, m.sessionSel)
 				m.traces = loadTracesFor(m.dbPath, m.sessions, m.sessionSel)
+				m.prohibited = loadProhibitedFor(m.dbPath, m.sessions, m.sessionSel)
 				if m.vpReady {
 					m.vp.SetContent(m.viewportContent())
 				}
@@ -237,6 +240,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.sessionSel = clampIndex(m.sessionSel-1, len(m.sessions))
 				m.steps = loadStepsFor(m.dbPath, m.sessions, m.sessionSel)
 				m.traces = loadTracesFor(m.dbPath, m.sessions, m.sessionSel)
+				m.prohibited = loadProhibitedFor(m.dbPath, m.sessions, m.sessionSel)
 				if m.vpReady {
 					m.vp.SetContent(m.viewportContent())
 				}

@@ -60,6 +60,21 @@ type DecisionTraceRow struct {
 	Units         []TraceUnitRow
 }
 
+// ProhibitedAttemptRow is one distinct deny-hit within a session (§4.3b, v0.32,
+// RFC-0030), aggregated across repeats: Count > 1 means the same prohibition
+// was attempted repeatedly — the governance signal the event type exists for
+// (misconfiguration, compromise, or probing). BindingSource names which deny
+// matched: the playbook's blanket deny, the used skill's deny, or both.
+type ProhibitedAttemptRow struct {
+	Playbook      string // playbook unit id ("" when the deny is skill-only)
+	Step          string // step id within the playbook
+	Token         string // the denied token (tool name, path, capability)
+	Dimension     string // "tools" | "paths" | "capabilities"
+	BindingSource string // "playbook" | "skill" | "both"
+	Count         int64  // attempts against this deny (retransmits deduplicated)
+	LastTS        string // timestamp of the most recent attempt
+}
+
 func tableExists(db *sql.DB, name string) bool {
 	var got string
 	err := db.QueryRow(`SELECT name FROM sqlite_master WHERE type='table' AND name=?`, name).Scan(&got)
@@ -135,4 +150,43 @@ func loadSessionTraces(usageDBPath, sessionID string) ([]DecisionTraceRow, error
 		urows.Close()
 	}
 	return out, nil
+}
+
+// loadSessionProhibitedAttempts returns the session's deny-hits grouped per
+// (playbook, step, token, dimension, binding source), most-attempted first —
+// repeated attempts against the same deny surface as one row with a count.
+// Absent table → empty, nil error.
+func loadSessionProhibitedAttempts(usageDBPath, sessionID string) ([]ProhibitedAttemptRow, error) {
+	db, err := sql.Open("sqlite", "file:"+usageDBPath+"?mode=ro&_journal_mode=WAL")
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	if !tableExists(db, "prohibited_attempts") {
+		return nil, nil
+	}
+
+	rows, err := db.Query(
+		`SELECT COALESCE(playbook,''), COALESCE(step,''), token, dimension,
+		        binding_source, COUNT(*), MAX(ts)
+		   FROM prohibited_attempts
+		  WHERE session_id = ?
+		  GROUP BY playbook, step, token, dimension, binding_source
+		  ORDER BY COUNT(*) DESC, MAX(ts) DESC`, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []ProhibitedAttemptRow
+	for rows.Next() {
+		var pa ProhibitedAttemptRow
+		if err := rows.Scan(&pa.Playbook, &pa.Step, &pa.Token, &pa.Dimension,
+			&pa.BindingSource, &pa.Count, &pa.LastTS); err != nil {
+			return nil, err
+		}
+		out = append(out, pa)
+	}
+	return out, rows.Err()
 }
