@@ -68,11 +68,15 @@ type DecisionTraceRow struct {
 type ProhibitedAttemptRow struct {
 	Playbook      string // playbook unit id ("" when the deny is skill-only)
 	Step          string // step id within the playbook
-	Token         string // the denied token (tool name, path, capability)
+	Token         string // the attempted token (tool name, path, capability)
 	Dimension     string // "tools" | "paths" | "capabilities"
-	BindingSource string // "playbook" | "skill" | "both"
-	Count         int64  // attempts against this deny (retransmits deduplicated)
-	LastTS        string // timestamp of the most recent attempt
+	BindingSource string // "skill" | "playbook" | "both"
+	// MatchedPattern is the deny entry that caught the token (SPEC §17,
+	// v0.32.1) — on a glob hit it differs from Token: the attempted path plus
+	// the pattern that caught it is the story. "" on pre-§17 rows.
+	MatchedPattern string
+	Count          int64  // attempts against this deny (retransmits deduplicated)
+	LastTS         string // timestamp of the most recent attempt
 }
 
 func tableExists(db *sql.DB, name string) bool {
@@ -167,12 +171,19 @@ func loadSessionProhibitedAttempts(usageDBPath, sessionID string) ([]ProhibitedA
 		return nil, nil
 	}
 
+	// SPEC §17 (v0.32.1) added matched_pattern; a usage.db last written by a
+	// pre-§17 dashboard lacks the column, so select it only when present —
+	// this is a read-only handle, migration happens on the write side.
+	mp := `''`
+	if columnExists(db, "prohibited_attempts", "matched_pattern") {
+		mp = `COALESCE(matched_pattern,'')`
+	}
 	rows, err := db.Query(
 		`SELECT COALESCE(playbook,''), COALESCE(step,''), token, dimension,
-		        binding_source, COUNT(*), MAX(ts)
+		        binding_source, `+mp+`, COUNT(*), MAX(ts)
 		   FROM prohibited_attempts
 		  WHERE session_id = ?
-		  GROUP BY playbook, step, token, dimension, binding_source
+		  GROUP BY playbook, step, token, dimension, binding_source, `+mp+`
 		  ORDER BY COUNT(*) DESC, MAX(ts) DESC`, sessionID)
 	if err != nil {
 		return nil, err
@@ -183,7 +194,7 @@ func loadSessionProhibitedAttempts(usageDBPath, sessionID string) ([]ProhibitedA
 	for rows.Next() {
 		var pa ProhibitedAttemptRow
 		if err := rows.Scan(&pa.Playbook, &pa.Step, &pa.Token, &pa.Dimension,
-			&pa.BindingSource, &pa.Count, &pa.LastTS); err != nil {
+			&pa.BindingSource, &pa.MatchedPattern, &pa.Count, &pa.LastTS); err != nil {
 			return nil, err
 		}
 		out = append(out, pa)

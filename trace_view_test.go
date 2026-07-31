@@ -143,6 +143,40 @@ func TestRenderProhibitedAttempts(t *testing.T) {
 	}
 }
 
+// TestRenderProhibitedAttempts_GlobShowsCatchingPattern (§17, v0.32.1): on a
+// glob hit the attempted token and the deny pattern that caught it differ —
+// the story is both, so the pane must show the pattern under the token. When
+// they are equal (exact hit) or the pattern is absent (pre-§17 row), no extra
+// line is rendered.
+func TestRenderProhibitedAttempts_GlobShowsCatchingPattern(t *testing.T) {
+	rows := []ProhibitedAttemptRow{
+		{Playbook: "pb-002-gdpr-sletting", Step: "slett",
+			Token: "legal/hold/2025/case-4711/evidence.pdf", MatchedPattern: "legal/hold/**",
+			Dimension: "paths", BindingSource: "playbook", Count: 1, LastTS: "2026-07-31T06:15:04Z"},
+	}
+	out := renderProhibitedAttempts(rows, 90)
+	for _, want := range []string{"legal/hold/2025/case-4711/evidence.pdf", "caught by", "legal/hold/**"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("glob hit should show attempted path + catching pattern, missing %q:\n%s", want, out)
+		}
+	}
+
+	exact := []ProhibitedAttemptRow{
+		{Playbook: "pb-1", Step: "s1", Token: "transfer_ownership", MatchedPattern: "transfer_ownership",
+			Dimension: "tools", BindingSource: "both", Count: 1},
+	}
+	if out := renderProhibitedAttempts(exact, 90); strings.Contains(out, "caught by") {
+		t.Errorf("exact hit (pattern == token) must not render a caught-by line:\n%s", out)
+	}
+	legacy := []ProhibitedAttemptRow{
+		{Playbook: "pb-1", Step: "s1", Token: "legal/hold/**",
+			Dimension: "paths", BindingSource: "playbook", Count: 1},
+	}
+	if out := renderProhibitedAttempts(legacy, 90); strings.Contains(out, "caught by") {
+		t.Errorf("pre-§17 row (no pattern) must not render a caught-by line:\n%s", out)
+	}
+}
+
 // TestRenderProhibitedAttempts_WirePath exercises the full RFC-0030 path:
 // prohibited-attempt events ingested via the real /trace handler, loaded back,
 // and rendered in the decisions pane alongside the decision traces.

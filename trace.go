@@ -39,21 +39,53 @@ type traceUnitInput struct {
 }
 
 // prohibitedAttemptEvent is the wire format for a kind:"prohibited_attempt"
-// event on /trace — a deny-hit (§4.3b, v0.32, RFC-0030). A deny is never
+// event on /trace — a deny-hit (SPEC §17, v0.32, RFC-0030). A deny is never
 // grantable: the action was refused, finally, and this event is the notify-only
-// audit record of the attempt. BindingSource names which deny matched — the
-// playbook's blanket deny, the used skill's deny, or both (union composition).
+// audit record of the attempt. Field names follow the normative §17 wire object
+// (KCP v0.32.1); the canonical fixture is vendored at
+// testdata/prohibited-attempt.json. BindingSource names which deny matched —
+// the playbook's blanket deny, the used skill's deny, or both (union
+// composition). Nullable §17 fields are pointers so present-but-null survives
+// to the row as NULL, not "".
 type prohibitedAttemptEvent struct {
-	Kind          string `json:"kind"`
-	SessionID     string `json:"session_id"`
-	TS            string `json:"ts"`
-	Project       string `json:"project"`
-	Manifest      string `json:"manifest"`
-	Playbook      string `json:"playbook"`       // playbook unit id ("" when the deny is skill-only)
-	Step          string `json:"step"`           // step id within the playbook
-	Token         string `json:"token"`          // the denied token (tool name, path, capability)
-	Dimension     string `json:"dimension"`      // "tools" | "paths" | "capabilities"
-	BindingSource string `json:"binding_source"` // "playbook" | "skill" | "both"
+	Kind           string  `json:"kind"`
+	Timestamp      string  `json:"timestamp"`       // RFC 3339 UTC
+	UnitID         string  `json:"unit_id"`         // the unit (skill) whose execution hit the deny
+	PlaybookID     string  `json:"playbook_id"`     // playbook unit id ("" when the deny is skill-only)
+	StepID         string  `json:"step_id"`         // step id within the playbook
+	Dimension      string  `json:"dimension"`       // "tools" | "paths" | "capabilities"
+	Token          string  `json:"token"`           // the attempted token (tool name, path, capability)
+	MatchedPattern *string `json:"matched_pattern"` // deny entry that caught it — differs from token on glob hits
+	BindingSource  string  `json:"binding_source"`  // "skill" | "playbook" | "both"
+	AcknowledgedBy *string `json:"acknowledged_by"` // operator ack; null until acknowledged
+	CorrelationID  *string `json:"correlation_id"`  // W3C traceparent; null when unavailable
+
+	// Transport envelope kcp-harness adds around the §17 object. Not part of
+	// the normative shape — absent from the conformance fixture — so all
+	// optional.
+	SessionID string `json:"session_id"`
+	Project   string `json:"project"`
+	Manifest  string `json:"manifest"`
+
+	// Pre-§17 field names (the shape PR #45 invented before the schema
+	// existed), accepted so older emitters keep ingesting during rollout.
+	// The §17 name wins whenever both are present.
+	LegacyTS       string `json:"ts"`
+	LegacyPlaybook string `json:"playbook"`
+	LegacyStep     string `json:"step"`
+}
+
+// normalize resolves the pre-§17 aliases into the §17 fields.
+func (e *prohibitedAttemptEvent) normalize() {
+	if e.Timestamp == "" {
+		e.Timestamp = e.LegacyTS
+	}
+	if e.PlaybookID == "" {
+		e.PlaybookID = e.LegacyPlaybook
+	}
+	if e.StepID == "" {
+		e.StepID = e.LegacyStep
+	}
 }
 
 // createTraceTables ensures the decision-trace tables exist. Called from
@@ -97,22 +129,37 @@ func createTraceTables(db *sql.DB) error {
 	}
 	// RFC-0030 (v0.32): prohibited-attempt events, one row per attempt. The
 	// UNIQUE constraint deduplicates retransmits of the same event; distinct
-	// timestamps are distinct attempts, so repeats stay countable.
+	// timestamps are distinct attempts, so repeats stay countable. Column names
+	// predate SPEC §17 (ts/playbook/step were this dashboard's invention); the
+	// §17 wire names map onto them on ingest so pre-§17 rows stay readable.
 	if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS prohibited_attempts (
-		id             INTEGER PRIMARY KEY AUTOINCREMENT,
-		session_id     TEXT NOT NULL,
-		ts             TEXT NOT NULL,
-		project        TEXT,
-		manifest       TEXT,
-		playbook       TEXT,
-		step           TEXT,
-		token          TEXT NOT NULL,
-		dimension      TEXT NOT NULL,
-		binding_source TEXT NOT NULL,
-		ingested_at    TEXT NOT NULL,
+		id              INTEGER PRIMARY KEY AUTOINCREMENT,
+		session_id      TEXT NOT NULL,
+		ts              TEXT NOT NULL,
+		project         TEXT,
+		manifest        TEXT,
+		playbook        TEXT,
+		step            TEXT,
+		token           TEXT NOT NULL,
+		dimension       TEXT NOT NULL,
+		binding_source  TEXT NOT NULL,
+		unit_id         TEXT,
+		matched_pattern TEXT,
+		acknowledged_by TEXT,
+		correlation_id  TEXT,
+		ingested_at     TEXT NOT NULL,
 		UNIQUE (session_id, ts, playbook, step, token, dimension)
 	)`); err != nil {
 		return err
+	}
+	// SPEC §17 (v0.32.1): columns added after PR #45 shipped the table.
+	// Idempotent — skipped once present; pre-§17 rows read back as NULL.
+	for _, col := range []string{"unit_id", "matched_pattern", "acknowledged_by", "correlation_id"} {
+		if !columnExists(db, "prohibited_attempts", col) {
+			if _, err := db.Exec(`ALTER TABLE prohibited_attempts ADD COLUMN ` + col + ` TEXT`); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }
@@ -196,12 +243,16 @@ func (u *usageWriter) writeProhibitedAttempt(ev prohibitedAttemptEvent) error {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 
+	ev.normalize()
 	_, err := u.db.Exec(
 		`INSERT OR IGNORE INTO prohibited_attempts
-		 (session_id, ts, project, manifest, playbook, step, token, dimension, binding_source, ingested_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		ev.SessionID, ev.TS, ev.Project, ev.Manifest, ev.Playbook, ev.Step,
-		ev.Token, ev.Dimension, ev.BindingSource, time.Now().UTC().Format(time.RFC3339))
+		 (session_id, ts, project, manifest, playbook, step, token, dimension, binding_source,
+		  unit_id, matched_pattern, acknowledged_by, correlation_id, ingested_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		ev.SessionID, ev.Timestamp, ev.Project, ev.Manifest, ev.PlaybookID, ev.StepID,
+		ev.Token, ev.Dimension, ev.BindingSource,
+		ev.UnitID, ev.MatchedPattern, ev.AcknowledgedBy, ev.CorrelationID,
+		time.Now().UTC().Format(time.RFC3339))
 	return err
 }
 

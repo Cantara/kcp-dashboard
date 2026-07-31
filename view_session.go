@@ -177,6 +177,12 @@ func renderProhibitedAttempts(rows []ProhibitedAttemptRow, width int) string {
 			line += "  " + styleWarn.Render(fmt.Sprintf("×%d", pa.Count))
 		}
 		b.WriteString(line + "\n")
+		// SPEC §17: on a glob hit the attempted token and the deny pattern that
+		// caught it differ — show both, the attempted path AND which pattern
+		// caught it. Exact hits and pre-§17 rows carry no separate pattern.
+		if pa.MatchedPattern != "" && pa.MatchedPattern != pa.Token {
+			b.WriteString("         " + styleDim.Render("caught by "+truncate(pa.MatchedPattern, width-19)) + "\n")
+		}
 	}
 	return strings.TrimRight(b.String(), "\n")
 }
