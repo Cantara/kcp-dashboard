@@ -73,7 +73,7 @@ units:
     triggers: [ main, entry point, start, launch ]
     content_hash:
       algorithm: sha256
-      value: "77d7dd3abee8dc606ff33cc9a8daec852ec4765970c14775bb89ea2c647dad58"
+      value: "a9e0330074cb6fb56c4352bf1ff65e24451ea95fcac86d938ea086ac37d627b8"
 
   - id: view
     path: view.go
