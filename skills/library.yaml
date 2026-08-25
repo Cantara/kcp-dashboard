@@ -1,0 +1,35 @@
+# Local skills for kcp-dashboard.
+#
+# These are repo-specific operational procedures for THIS repo only. For the shared
+# governed-skill authoring conventions (action_scope as a firewall rule, audience,
+# scope, etc.) see https://github.com/Cantara/kcp-skill/blob/main/PROFILE.md.
+#
+# Not part of knowledge.yaml: knowledge.yaml is Ed25519-signed (knowledge.yaml.sig,
+# re-signed by .github/workflows/sign-kcp.yml on every push that touches it), so this
+# index is kept separate to avoid churning the signed manifest for local-only skills.
+
+version: "0.1"
+
+skills:
+  - id: update-knowledge-hashes
+    path: update-knowledge-hashes/SKILL.md
+    kind: skill
+    intent: "How do I fix knowledge.yaml after CI's 'Validate knowledge.yaml' step
+      fails with a content_hash mismatch?"
+    scope: project
+    audience: [agent, operator]
+    triggers:
+      [
+        content_hash,
+        knowledge.yaml,
+        stale hash,
+        validate,
+        ci failing,
+        manifest,
+        kcp validate
+      ]
+    load_eligible: true
+    action_scope:
+      tools: [read, bash, edit]
+      paths: ["knowledge.yaml", "README.md", "main.go", "view.go", "db.go"]
+      capabilities: []
