@@ -4,6 +4,9 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -27,6 +30,20 @@ func postHook(t *testing.T, store *ManifestStore, body string) *httptest.Respons
 	rr := httptest.NewRecorder()
 	handleHook(rr, req, store, nil, hookPort) // nil usage writer — no DB needed in tests
 	return rr
+}
+
+// The hook must never make Claude Code's permission decision: "allow" skips the permission prompt for
+// the whole command, and only the first word is used to find a manifest, so "mvn test; rm -rf x" ran
+// without a prompt because mvn has one.
+func TestHandleHook_CompoundCommand_NoPermissionDecision(t *testing.T) {
+	store := loadTestStore(t)
+	rr := postHook(t, store, `{"tool_name":"Bash","tool_input":{"command":"mvn test; rm -rf /tmp/kcp-test-does-not-exist"},"session_id":"s1","cwd":"/tmp"}`)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200 (context is still added), got %d", rr.Code)
+	}
+	if strings.Contains(rr.Body.String(), "permissionDecision") {
+		t.Errorf("the hook must not decide permission, got: %s", rr.Body.String())
+	}
 }
 
 func TestHandleHook_NonBashTool_Returns204(t *testing.T) {
@@ -70,8 +87,8 @@ func TestHandleHook_KnownCommand_Returns200WithContext(t *testing.T) {
 	if out.HookEventName != "PreToolUse" {
 		t.Errorf("expected hookEventName=PreToolUse, got %q", out.HookEventName)
 	}
-	if out.PermissionDecision != "allow" {
-		t.Errorf("expected permissionDecision=allow, got %q", out.PermissionDecision)
+	if strings.Contains(rr.Body.String(), "permissionDecision") {
+		t.Errorf("the hook must not decide permission, got: %s", rr.Body.String())
 	}
 	if out.AdditionalContext == "" {
 		t.Error("expected non-empty additionalContext")
@@ -81,7 +98,56 @@ func TestHandleHook_KnownCommand_Returns200WithContext(t *testing.T) {
 	}
 }
 
+// installFilter points filterCommand at an executable stand-in for ~/.kcp/kcp-filter for one test.
+func installFilter(t *testing.T, dir string) string {
+	t.Helper()
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	f := filepath.Join(dir, "kcp-filter")
+	if err := os.WriteFile(f, []byte("#!/bin/sh\ncat\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	saved := filterCommand
+	filterCommand = f
+	t.Cleanup(func() { filterCommand = saved })
+	return f
+}
+
+func TestHandleHook_FilterEnabled_PipesIntoKcpFilter(t *testing.T) {
+	f := installFilter(t, filepath.Join(t.TempDir(), ".kcp"))
+	store := loadTestStore(t)
+	rr := postHook(t, store, `{"tool_name":"Bash","tool_input":{"command":"mvn test"},"session_id":"s1","cwd":"/tmp"}`)
+	var resp hookResponse
+	json.NewDecoder(rr.Body).Decode(&resp)
+	want := "mvn test | " + f + " mvn " + strconv.Itoa(hookPort)
+	if got := resp.HookSpecificOutput.UpdatedInput["command"]; got != want {
+		t.Errorf("updatedInput command:\n got %q\nwant %q", got, want)
+	}
+}
+
+func TestHandleHook_FilterNotInstalled_CommandUnchanged(t *testing.T) {
+	saved := filterCommand
+	filterCommand = filepath.Join(t.TempDir(), "nowhere", "kcp-filter")
+	t.Cleanup(func() { filterCommand = saved })
+	store := loadTestStore(t)
+	rr := postHook(t, store, `{"tool_name":"Bash","tool_input":{"command":"mvn test"},"session_id":"s1","cwd":"/tmp"}`)
+	var resp hookResponse
+	json.NewDecoder(rr.Body).Decode(&resp)
+	if resp.HookSpecificOutput.UpdatedInput != nil {
+		t.Errorf("a missing filter must leave the command as is, got %v", resp.HookSpecificOutput.UpdatedInput)
+	}
+}
+
+func TestFiltered_PathWithWhitespace_NotUsed(t *testing.T) {
+	installFilter(t, filepath.Join(t.TempDir(), "a user", ".kcp"))
+	if got := filtered("mvn test", "mvn", hookPort); got != "" {
+		t.Errorf("a path that needs quoting cannot match the permission rule; got %q", got)
+	}
+}
+
 func TestHandleHook_FilterEnabled_WrapsCommand(t *testing.T) {
+	installFilter(t, filepath.Join(t.TempDir(), ".kcp"))
 	store := loadTestStore(t)
 	rr := postHook(t, store, `{"tool_name":"Bash","tool_input":{"command":"mvn test"},"session_id":"s1","cwd":"/tmp"}`)
 
@@ -97,8 +163,11 @@ func TestHandleHook_FilterEnabled_WrapsCommand(t *testing.T) {
 		t.Fatal("expected updatedInput for filter-enabled manifest, got nil")
 	}
 	wrapped := out.UpdatedInput["command"]
-	if !containsStr(wrapped, "/filter/mvn") {
-		t.Errorf("expected updatedInput to pipe through /filter/mvn:\n%s", wrapped)
+	if !containsStr(wrapped, "kcp-filter mvn ") {
+		t.Errorf("expected updatedInput to pipe through kcp-filter mvn:\n%s", wrapped)
+	}
+	if containsStr(wrapped, "curl") {
+		t.Errorf("the rewrite must not need a broad curl permission:\n%s", wrapped)
 	}
 	if !containsStr(wrapped, "mvn test") {
 		t.Errorf("expected original command preserved in updatedInput:\n%s", wrapped)
