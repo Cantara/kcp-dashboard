@@ -34,11 +34,40 @@ type hookResponse struct {
 	HookSpecificOutput hookOutput `json:"hookSpecificOutput"`
 }
 
+// hookOutput deliberately has no permissionDecision. "allow" would skip Claude Code's permission
+// prompt for the whole command, and the manifest is found from the first word only, so
+// "mvn test; rm -rf x" would run unasked. Whether a command may run is left to the user's rules,
+// which Claude Code checks against the rewritten command: hence the dedicated kcp-filter below.
 type hookOutput struct {
-	HookEventName      string            `json:"hookEventName"`
-	PermissionDecision string            `json:"permissionDecision"`
-	AdditionalContext  string            `json:"additionalContext,omitempty"`
-	UpdatedInput       map[string]string `json:"updatedInput,omitempty"`
+	HookEventName     string            `json:"hookEventName"`
+	AdditionalContext string            `json:"additionalContext,omitempty"`
+	UpdatedInput      map[string]string `json:"updatedInput,omitempty"`
+}
+
+// filterCommand is the output filter that kcp-commands' installer puts in place, ~/.kcp/kcp-filter,
+// and allows with one permission rule, Bash(<home>/.kcp/kcp-filter:*). A var so tests can point it
+// at a stand-in.
+var filterCommand = defaultFilterCommand()
+
+func defaultFilterCommand() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(home, ".kcp", "kcp-filter")
+}
+
+// filtered returns command piped through kcp-filter, or "" when that cannot be done safely: a path
+// with whitespace would need quoting and would no longer match the permission rule, and a filter
+// that is not installed would turn the command into "command not found" and lose its output.
+func filtered(command, key string, port int) string {
+	if filterCommand == "" || strings.ContainsAny(filterCommand, " \t\n") {
+		return ""
+	}
+	if fi, err := os.Stat(filterCommand); err != nil || fi.IsDir() || fi.Mode()&0o111 == 0 {
+		return ""
+	}
+	return fmt.Sprintf("%s | %s %s %d", command, filterCommand, key, port)
 }
 
 // ── Usage event writer ────────────────────────────────────────────────────────
@@ -202,10 +231,7 @@ func handleHook(w http.ResponseWriter, r *http.Request, store *ManifestStore, us
 	}
 
 	key := manifestKey(manifest)
-	out := hookOutput{
-		HookEventName:      "PreToolUse",
-		PermissionDecision: "allow",
-	}
+	out := hookOutput{HookEventName: "PreToolUse"}
 
 	// Phase A: inject guidance context
 	ctx := buildAdditionalContext(manifest)
@@ -217,13 +243,10 @@ func handleHook(w http.ResponseWriter, r *http.Request, store *ManifestStore, us
 		}
 	}
 
-	// Phase B: wrap command for output filtering
+	// Phase B: pipe the output through kcp-filter, which posts it to /filter/{key}
 	if manifest.OutputSchema.EnableFilter {
-		out.UpdatedInput = map[string]string{
-			"command": fmt.Sprintf(
-				`%s | curl -s -X POST "http://localhost:%d/filter/%s" --data-binary @-`,
-				command, port, key,
-			),
+		if wrapped := filtered(command, key, port); wrapped != "" {
+			out.UpdatedInput = map[string]string{"command": wrapped}
 		}
 	}
 
